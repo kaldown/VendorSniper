@@ -1,0 +1,14 @@
+## Interface: 20505
+## Title: VendorSniper
+## Notes: Auto-buy limited-supply vendor items when they restock
+## Author: kaldown
+## Version: 0.1.0
+## IconTexture: Interface\Icons\INV_Misc_SpyGlass_03
+## SavedVariables: VendorSniperDB
+
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
+Libs\LibDBIcon-1.0\lib.xml
+
+Core.lua
