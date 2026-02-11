@@ -37,12 +37,37 @@ local currentVendorID = nil
 local currentVendorGUID = nil
 local currentVendorName = nil
 local autoCloseTimer = nil
-local limitedItems = {} -- scanned limited supply items
-local mode = "setup" -- "setup" or "monitoring"
+local limitedItems = {} -- scanned limited supply items (valid only while merchant open)
+local viewContext = "watchlist" -- "vendor" | "watchlist" | "monitoring"
 
 --------------------------------------------------------------
 -- DB
 --------------------------------------------------------------
+
+local function MigrateVendorsToWatchlist()
+    if not VendorSniperDB.vendors then return end
+    if VendorSniperDB.watchlist then return end -- already migrated
+
+    VendorSniperDB.watchlist = {}
+    for _, vendor in pairs(VendorSniperDB.vendors) do
+        if vendor.items then
+            for itemId, data in pairs(vendor.items) do
+                if data.target > data.bought then
+                    -- First vendor wins if same item watched at multiple vendors
+                    if not VendorSniperDB.watchlist[itemId] then
+                        VendorSniperDB.watchlist[itemId] = {
+                            name = data.name,
+                            target = data.target,
+                            bought = data.bought,
+                            addedFrom = vendor.name or "Unknown",
+                        }
+                    end
+                end
+            end
+        end
+    end
+    VendorSniperDB.vendors = nil
+end
 
 local function InitializeDB()
     VendorSniperDB.minimap = VendorSniperDB.minimap or { hide = false }
@@ -50,8 +75,10 @@ local function InitializeDB()
     VendorSniperDB.autoClose = VendorSniperDB.autoClose ~= false -- default true
     VendorSniperDB.autoCloseDelay = VendorSniperDB.autoCloseDelay or AUTO_CLOSE_DELAY
     VendorSniperDB.alertDuration = VendorSniperDB.alertDuration or DEFAULT_ALERT_DURATION
-    VendorSniperDB.vendors = VendorSniperDB.vendors or {}
     VendorSniperDB.log = VendorSniperDB.log or {}
+
+    MigrateVendorsToWatchlist()
+    VendorSniperDB.watchlist = VendorSniperDB.watchlist or {}
 end
 
 --------------------------------------------------------------
@@ -64,26 +91,8 @@ local function GetNPCIDFromGUID(guid)
     return npcID and tonumber(npcID)
 end
 
-local function GetVendorData()
-    if not currentVendorID then return nil end
-    return VendorSniperDB.vendors[currentVendorID]
-end
-
-local function GetOrCreateVendorData()
-    if not currentVendorID then return nil end
-    if not VendorSniperDB.vendors[currentVendorID] then
-        VendorSniperDB.vendors[currentVendorID] = {
-            name = currentVendorName or "Unknown",
-            items = {},
-        }
-    end
-    return VendorSniperDB.vendors[currentVendorID]
-end
-
 local function HasActiveWatchlist()
-    local vendor = GetVendorData()
-    if not vendor then return false end
-    for _, data in pairs(vendor.items) do
+    for _, data in pairs(VendorSniperDB.watchlist) do
         if data.target > data.bought then
             return true
         end
@@ -92,10 +101,8 @@ local function HasActiveWatchlist()
 end
 
 local function GetWatchedCount()
-    local vendor = GetVendorData()
-    if not vendor then return 0 end
     local count = 0
-    for _, data in pairs(vendor.items) do
+    for _, data in pairs(VendorSniperDB.watchlist) do
         if data.target > data.bought then
             count = count + 1
         end
@@ -104,9 +111,9 @@ local function GetWatchedCount()
 end
 
 local function IsItemWatched(itemId)
-    local vendor = GetVendorData()
-    if not vendor or not vendor.items[itemId] then return false end
-    return vendor.items[itemId].target > vendor.items[itemId].bought
+    local data = VendorSniperDB.watchlist[itemId]
+    if not data then return false end
+    return data.target > data.bought
 end
 
 --------------------------------------------------------------
@@ -143,8 +150,8 @@ end
 --------------------------------------------------------------
 
 local function BuyWatchedItems()
-    local vendor = GetVendorData()
-    if not vendor or not vendor.items then return false end
+    local watchlist = VendorSniperDB.watchlist
+    if not next(watchlist) then return false end
 
     local numItems = GetMerchantNumItems()
     local anyBought = false
@@ -157,8 +164,8 @@ local function BuyWatchedItems()
             local itemLink = GetMerchantItemLink(i)
             local itemId = itemLink and tonumber(itemLink:match("item:(%d+)"))
 
-            if itemId and vendor.items[itemId] then
-                local watchData = vendor.items[itemId]
+            if itemId and watchlist[itemId] then
+                local watchData = watchlist[itemId]
                 local remaining = watchData.target - watchData.bought
 
                 if remaining > 0 then
@@ -172,7 +179,7 @@ local function BuyWatchedItems()
                         tinsert(VendorSniperDB.log, {
                             itemId = itemId,
                             itemName = name,
-                            vendorName = currentVendorName,
+                            vendorName = currentVendorName or "Unknown",
                             price = price * canBuy,
                             count = canBuy,
                             time = time(),
@@ -182,7 +189,7 @@ local function BuyWatchedItems()
                         VS:PlayAlert(name, canBuy, complete)
 
                         if complete then
-                            vendor.items[itemId] = nil
+                            watchlist[itemId] = nil
                         end
 
                         anyBought = true
@@ -272,7 +279,7 @@ function VS:StartWatching()
     end
 
     isWatching = true
-    mode = "monitoring"
+    viewContext = "monitoring"
     self:UpdateFrame()
     print(ADDON_PREFIX .. "Sniping started")
 
@@ -291,7 +298,7 @@ function VS:StopWatching()
         autoCloseTimer:Cancel()
         autoCloseTimer = nil
     end
-    mode = "setup"
+    viewContext = merchantOpen and "vendor" or "watchlist"
     self:UpdateFrame()
     print(ADDON_PREFIX .. "Sniping stopped")
 end
@@ -311,11 +318,12 @@ function VS:OnMerchantShow()
     ScanMerchant()
 
     if isWatching then
+        -- Stay in monitoring view, just scan+buy
         local bought = BuyWatchedItems()
         self:UpdateFrame()
         ScheduleAutoClose()
     elseif #limitedItems > 0 or HasActiveWatchlist() then
-        mode = "setup"
+        viewContext = "vendor"
         self:ShowFrame()
         self:UpdateFrame()
     end
@@ -323,9 +331,14 @@ end
 
 function VS:OnMerchantClose()
     merchantOpen = false
+    wipe(limitedItems)
     if autoCloseTimer then
         autoCloseTimer:Cancel()
         autoCloseTimer = nil
+    end
+    -- Transition vendor view to watchlist (monitoring stays monitoring)
+    if viewContext == "vendor" then
+        viewContext = "watchlist"
     end
     self:UpdateFrame()
 end
@@ -372,21 +385,18 @@ StaticPopupDialogs["VENDORSNIPER_QUANTITY"] = {
 
 function VS:SetWatch(itemId, itemName, quantity)
     if not itemId then return end
-    local vendor = GetOrCreateVendorData()
-    if not vendor then return end
 
-    vendor.items[itemId] = {
+    VendorSniperDB.watchlist[itemId] = {
         name = itemName or "Unknown",
         target = quantity,
         bought = 0,
+        addedFrom = currentVendorName or "Unknown",
     }
     self:UpdateFrame()
 end
 
 function VS:RemoveWatch(itemId)
-    local vendor = GetVendorData()
-    if not vendor then return end
-    vendor.items[itemId] = nil
+    VendorSniperDB.watchlist[itemId] = nil
     self:UpdateFrame()
 end
 
@@ -405,10 +415,6 @@ function VS:ToggleWatch(itemId, itemName)
 end
 
 function VS:WatchByLink(itemLink)
-    if not currentVendorID then
-        print(ADDON_PREFIX .. "Open a vendor first!")
-        return
-    end
     if not itemLink then
         print(ADDON_PREFIX .. "Usage: /vs watch [itemlink] or /vs watch [itemId]")
         return
@@ -431,9 +437,7 @@ function VS:WatchByLink(itemLink)
 end
 
 function VS:ClearWatchlist()
-    local vendor = GetVendorData()
-    if not vendor then return end
-    wipe(vendor.items)
+    wipe(VendorSniperDB.watchlist)
     if isWatching then
         self:StopWatching()
     end
@@ -502,7 +506,6 @@ function VS:BuildHeader(parent)
     local closeBtn = CreateFrame("Button", nil, parent, "UIPanelCloseButton")
     closeBtn:SetPoint("TOPRIGHT", -2, -2)
 
-    -- Status text (vendor name / mode)
     local status = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     status:SetPoint("TOPLEFT", 12, -28)
     status:SetTextColor(0.7, 0.7, 0.7)
@@ -544,7 +547,7 @@ function VS:CreateRow(parent, index)
     row:SetSize(FRAME_WIDTH - 50, ROW_HEIGHT)
     row:SetPoint("TOPLEFT", self.scrollFrame, "TOPLEFT", 0, -((index - 1) * ROW_HEIGHT))
 
-    -- Checkbox (setup mode)
+    -- Checkbox (vendor view only)
     row.check = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
     row.check:SetSize(22, 22)
     row.check:SetPoint("LEFT", 0, 0)
@@ -567,7 +570,7 @@ function VS:CreateRow(parent, index)
     row.nameText:SetWidth(160)
     row.nameText:SetJustifyH("LEFT")
 
-    -- Stock / progress
+    -- Stock / progress / vendor name
     row.infoText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     row.infoText:SetPoint("RIGHT", -5, 0)
     row.infoText:SetJustifyH("RIGHT")
@@ -580,8 +583,12 @@ function VS:CreateRow(parent, index)
     -- Click handler for the whole row
     row:EnableMouse(true)
     row:SetScript("OnMouseDown", function(self, button)
-        if button == "LeftButton" and self.itemId and mode == "setup" then
-            VS:ToggleWatch(self.itemId, self.itemName)
+        if button == "LeftButton" and self.itemId then
+            if viewContext == "vendor" then
+                VS:ToggleWatch(self.itemId, self.itemName)
+            elseif viewContext == "watchlist" then
+                VS:RemoveWatch(self.itemId)
+            end
         end
     end)
 
@@ -642,25 +649,32 @@ end
 function VS:UpdateHeader()
     if not self.statusText then return end
 
-    if mode == "monitoring" then
+    if viewContext == "monitoring" then
         self.titleText:SetText("VendorSniper")
         self.titleText:SetTextColor(0.0, 1.0, 0.4)
-        local vendorName = currentVendorName or "Unknown"
-        self.statusText:SetText("SNIPING - " .. vendorName)
+        self.statusText:SetText("SNIPING")
         self.statusText:SetTextColor(0.0, 1.0, 0.4)
-    else
+
+    elseif viewContext == "vendor" then
         self.titleText:SetText("VendorSniper")
         self.titleText:SetTextColor(0.2, 0.8, 1.0)
-        if currentVendorName then
-            local scanCount = #limitedItems
-            local watchCount = GetWatchedCount()
-            local parts = {}
-            if scanCount > 0 then tinsert(parts, scanCount .. " limited") end
-            if watchCount > 0 then tinsert(parts, watchCount .. " watched") end
-            local suffix = #parts > 0 and (" - " .. table.concat(parts, ", ")) or ""
-            self.statusText:SetText(currentVendorName .. suffix)
+        local scanCount = #limitedItems
+        local watchCount = GetWatchedCount()
+        local parts = {}
+        if scanCount > 0 then tinsert(parts, scanCount .. " limited") end
+        if watchCount > 0 then tinsert(parts, watchCount .. " watched") end
+        local suffix = #parts > 0 and (" - " .. table.concat(parts, ", ")) or ""
+        self.statusText:SetText((currentVendorName or "Vendor") .. suffix)
+        self.statusText:SetTextColor(0.7, 0.7, 0.7)
+
+    else -- watchlist
+        self.titleText:SetText("VendorSniper")
+        self.titleText:SetTextColor(0.2, 0.8, 1.0)
+        local count = GetWatchedCount()
+        if count > 0 then
+            self.statusText:SetText("Watchlist - " .. count .. " item(s)")
         else
-            self.statusText:SetText("")
+            self.statusText:SetText("Watchlist")
         end
         self.statusText:SetTextColor(0.7, 0.7, 0.7)
     end
@@ -670,35 +684,32 @@ function VS:UpdateList()
     if not self.frame or not self.frame:IsShown() then return end
     if not self.scrollFrame then return end
 
-    local items
-    if mode == "monitoring" then
-        -- Show only watched items
-        items = {}
-        local vendor = GetVendorData()
-        if vendor then
-            for itemId, data in pairs(vendor.items) do
-                if data.target > data.bought then
-                    -- Find texture from limitedItems scan
-                    local tex = "Interface\\Icons\\INV_Misc_QuestionMark"
-                    for _, li in ipairs(limitedItems) do
-                        if li.itemId == itemId then
-                            tex = li.texture
-                            break
-                        end
+    local items = {}
+
+    if viewContext == "monitoring" then
+        -- Show active watched items with progress
+        for itemId, data in pairs(VendorSniperDB.watchlist) do
+            if data.target > data.bought then
+                -- Try to find texture from current scan
+                local tex = "Interface\\Icons\\INV_Misc_QuestionMark"
+                for _, li in ipairs(limitedItems) do
+                    if li.itemId == itemId then
+                        tex = li.texture
+                        break
                     end
-                    tinsert(items, {
-                        itemId = itemId,
-                        name = data.name,
-                        texture = tex,
-                        bought = data.bought,
-                        target = data.target,
-                    })
                 end
+                tinsert(items, {
+                    itemId = itemId,
+                    name = data.name,
+                    texture = tex,
+                    bought = data.bought,
+                    target = data.target,
+                })
             end
         end
-    else
-        -- Merge scanned limited items + persisted watchlist items not in scan
-        items = {}
+
+    elseif viewContext == "vendor" then
+        -- Scanned limited items + global watchlist items not in scan
         local seen = {}
         for _, li in ipairs(limitedItems) do
             tinsert(items, li)
@@ -706,20 +717,32 @@ function VS:UpdateList()
                 seen[li.itemId] = true
             end
         end
-        -- Add watchlist items that aren't currently in the vendor
-        local vendor = GetVendorData()
-        if vendor then
-            for itemId, data in pairs(vendor.items) do
-                if not seen[itemId] and data.target > data.bought then
-                    local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemId)
-                    tinsert(items, {
-                        itemId = itemId,
-                        name = data.name,
-                        texture = itemTexture or "Interface\\Icons\\INV_Misc_QuestionMark",
-                        numAvailable = nil, -- not in vendor currently
-                        isWatchlistOnly = true,
-                    })
-                end
+        for itemId, data in pairs(VendorSniperDB.watchlist) do
+            if not seen[itemId] and data.target > data.bought then
+                local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemId)
+                tinsert(items, {
+                    itemId = itemId,
+                    name = data.name,
+                    texture = itemTexture or "Interface\\Icons\\INV_Misc_QuestionMark",
+                    numAvailable = nil,
+                    isWatchlistOnly = true,
+                })
+            end
+        end
+
+    else -- watchlist
+        -- All active watched items from global watchlist
+        for itemId, data in pairs(VendorSniperDB.watchlist) do
+            if data.target > data.bought then
+                local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemId)
+                tinsert(items, {
+                    itemId = itemId,
+                    name = data.name,
+                    texture = itemTexture or "Interface\\Icons\\INV_Misc_QuestionMark",
+                    addedFrom = data.addedFrom,
+                    bought = data.bought,
+                    target = data.target,
+                })
             end
         end
     end
@@ -740,14 +763,18 @@ function VS:UpdateList()
 
             row.icon:SetTexture(item.texture)
             row.nameText:SetText(item.name)
+            row.nameText:SetTextColor(1.0, 1.0, 1.0)
 
-            if mode == "monitoring" then
+            if viewContext == "monitoring" then
                 row.check:Hide()
+                row.icon:ClearAllPoints()
                 row.icon:SetPoint("LEFT", 4, 0)
                 row.infoText:SetText(item.bought .. "/" .. item.target)
                 row.infoText:SetTextColor(0.6, 0.8, 1.0)
-            else
+
+            elseif viewContext == "vendor" then
                 row.check:Show()
+                row.icon:ClearAllPoints()
                 row.icon:SetPoint("LEFT", row.check, "RIGHT", 2, 0)
                 row.check:SetChecked(IsItemWatched(item.itemId))
 
@@ -762,8 +789,15 @@ function VS:UpdateList()
                 else
                     row.infoText:SetText("(0)")
                     row.infoText:SetTextColor(0.5, 0.5, 0.5)
-                    row.nameText:SetTextColor(1.0, 1.0, 1.0)
                 end
+
+            else -- watchlist
+                row.check:Hide()
+                row.icon:ClearAllPoints()
+                row.icon:SetPoint("LEFT", 4, 0)
+                local progress = (item.bought or 0) .. "/" .. (item.target or 0)
+                row.infoText:SetText(progress .. " " .. (item.addedFrom or ""))
+                row.infoText:SetTextColor(0.5, 0.5, 0.5)
             end
 
             row:Show()
@@ -775,10 +809,12 @@ function VS:UpdateList()
     end
 
     if numItems == 0 then
-        if mode == "monitoring" then
+        if viewContext == "monitoring" then
             self.emptyText:SetText("No items being watched")
-        else
+        elseif viewContext == "vendor" then
             self.emptyText:SetText("No limited-supply items at this vendor")
+        else
+            self.emptyText:SetText("No watched items")
         end
         self.emptyText:Show()
     else
@@ -789,7 +825,9 @@ end
 function VS:UpdateFooter()
     if not self.actionBtn then return end
 
-    if mode == "monitoring" then
+    if viewContext == "monitoring" then
+        self.actionBtn:Show()
+        self.actionBtn:Enable()
         self.actionBtn:SetText("Stop")
 
         if not merchantOpen then
@@ -797,7 +835,9 @@ function VS:UpdateFooter()
         else
             self.refreshText:SetText("|cFF00FF00Active|r - " .. GetWatchedCount() .. " item(s) watched")
         end
-    else
+
+    elseif viewContext == "vendor" then
+        self.actionBtn:Show()
         local count = GetWatchedCount()
         if count > 0 then
             self.actionBtn:SetText("Start Watching (" .. count .. ")")
@@ -807,6 +847,10 @@ function VS:UpdateFooter()
             self.actionBtn:Disable()
         end
         self.refreshText:SetText("Click items to watch. Shift-click for quantity.")
+
+    else -- watchlist
+        self.actionBtn:Hide()
+        self.refreshText:SetText("Click to remove. Visit vendor to add.")
     end
 end
 
@@ -832,6 +876,14 @@ function VS:ToggleFrame()
     if self.frame and self.frame:IsShown() then
         self:HideFrame()
     else
+        -- Set view context based on current state
+        if isWatching then
+            viewContext = "monitoring"
+        elseif merchantOpen then
+            viewContext = "vendor"
+        else
+            viewContext = "watchlist"
+        end
         self:ShowFrame()
     end
 end
@@ -895,18 +947,11 @@ SlashCmdList["VENDORSNIPER"] = function(msg)
     elseif msg == "status" then
         local status = isWatching and "|cFF00FF00SNIPING|r" or "|cFFFF0000OFF|r"
         print(ADDON_PREFIX .. "Status: " .. status)
-        if currentVendorName then
-            print(ADDON_PREFIX .. "Vendor: " .. currentVendorName)
-        end
         local count = GetWatchedCount()
         print(ADDON_PREFIX .. "Watching: " .. count .. " item(s)")
-        -- Show watched items
-        local vendor = GetVendorData()
-        if vendor then
-            for itemId, data in pairs(vendor.items) do
-                if data.target > data.bought then
-                    print(ADDON_PREFIX .. "  " .. data.name .. " " .. data.bought .. "/" .. data.target)
-                end
+        for itemId, data in pairs(VendorSniperDB.watchlist) do
+            if data.target > data.bought then
+                print(ADDON_PREFIX .. "  " .. data.name .. " " .. data.bought .. "/" .. data.target .. " (from " .. (data.addedFrom or "?") .. ")")
             end
         end
 
