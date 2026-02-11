@@ -4,6 +4,7 @@
 ## Author: kaldown
 ## Version: 0.1.0
 ## IconTexture: Interface\Icons\INV_Misc_SpyGlass_03
+## X-License: MIT
 ## SavedVariables: VendorSniperDB
 
 Libs\LibStub\LibStub.lua

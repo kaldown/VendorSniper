@@ -25,4 +25,4 @@ Auto-buy limited-supply vendor items when they restock in World of Warcraft Clas
 
 ## License
 
-MIT
+MIT - See [LICENSE](LICENSE) for details.
