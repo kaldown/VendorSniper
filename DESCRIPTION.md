@@ -16,21 +16,21 @@ Never miss a limited-supply vendor restock again. Park an alt at a vendor, pick 
 
 ## Features
 
-- **Auto-buy on restock** - Automatically purchases watched items when the vendor restocks
+- **Auto-buy on vendor open** - Automatically purchases watched items when you open any vendor
 - **Global watchlist** - Watch items across any vendor, persists between sessions
 - **Quantity targets** - Set how many you need; VendorSniper tracks progress and stops when complete
-- **Raid warning alerts** - Screen flash and looping sound when a purchase is made
-- **Auto-close merchant** - Closes vendor window after scan for external reopen cycle
+- **Raid warning alerts** - Screen flash and looping sound when a purchase is made (toggleable with `/vs alert`)
+- **Auto-close merchant** - Optional: closes vendor window after scan for external reopen cycle
 - **Purchase log** - Track what was bought, when, and from which vendor
-- **Minimap button** - Left-click to toggle window, right-click to toggle sniping
+- **Minimap button** - Left-click to toggle window
 
 ## Usage
 
 1. Visit a vendor that sells limited-supply items
 2. VendorSniper shows limited items with checkboxes
 3. Check items to watch (shift-click for custom quantity)
-4. Click **Start Watching** to begin sniping
-5. Items are auto-bought on restock with raid warning alerts
+4. Next time you visit any vendor with those items in stock, they are bought automatically
+5. A raid warning alert fires on each purchase
 
 ## Slash Commands
 
@@ -38,10 +38,10 @@ Never miss a limited-supply vendor restock again. Park an alt at a vendor, pick 
 |---------|-------------|
 | `/vs` | Toggle window |
 | `/vs watch [itemlink]` | Add item to watchlist |
-| `/vs start` | Start sniping |
-| `/vs stop` | Stop sniping |
+| `/vs clear` | Clear watchlist |
 | `/vs status` | Show status |
+| `/vs alert` | Toggle alert sound/overlay |
 
 ## Compatibility
 
-Works on Anniversary Edition (TBC 2.5.5).
+Works on Classic Era (1.15.x) and Anniversary Edition (TBC 2.5.5).

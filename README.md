@@ -16,14 +16,13 @@ Never miss a limited-supply vendor restock again. Park an alt at a vendor, pick 
 
 ## Features
 
-- **Auto-buy on restock** - Automatically purchases watched items when the vendor restocks
+- **Auto-buy on vendor open** - Automatically purchases watched items when you open any vendor
 - **Global watchlist** - Watch items across any vendor, persists between sessions
 - **Quantity targets** - Set how many you need; VendorSniper tracks progress and stops when complete
-- **Raid warning alerts** - Screen flash and looping sound when a purchase is made so you don't miss it
-- **Three view modes** - Vendor scan (pick items), Watchlist (manage), Monitoring (live sniping)
-- **Auto-close merchant** - Closes vendor window after scan, ready for external reopen cycle
+- **Raid warning alerts** - Screen flash and looping sound when a purchase is made (toggleable with `/vs alert`)
+- **Auto-close merchant** - Optional: closes vendor window after scan for external reopen cycle
 - **Purchase log** - Track what was bought, when, and from which vendor
-- **Minimap button** - Left-click to toggle window, right-click to toggle sniping
+- **Minimap button** - Left-click to toggle window
 
 ## Screenshots
 
@@ -43,11 +42,10 @@ Open any vendor with limited-supply items. Check the ones you want to watch.
 1. Visit a vendor that sells limited-supply items
 2. VendorSniper automatically shows limited items with checkboxes
 3. Check items you want to watch (shift-click for custom quantity)
-4. Click **Start Watching** to begin sniping
-5. The addon auto-buys watched items whenever the vendor restocks
-6. A raid warning alert fires on each purchase
+4. Next time you visit any vendor with those items in stock, they are bought automatically
+5. A raid warning alert fires on each purchase
 
-**Tip:** Auto-close is enabled by default. After scanning, VendorSniper closes the merchant window so an external macro or tool can reopen it for the next restock cycle.
+**Tip:** Items are bought from any vendor that sells them, not just the one you added them from.
 
 ## Slash Commands
 
@@ -55,21 +53,19 @@ Open any vendor with limited-supply items. Check the ones you want to watch.
 |---------|-------------|
 | `/vs` | Toggle window |
 | `/vs watch [itemlink]` | Add item to watchlist |
-| `/vs start` | Start sniping |
-| `/vs stop` | Stop sniping |
 | `/vs clear` | Clear watchlist |
 | `/vs status` | Show status and watched items |
 | `/vs log` | Show recent purchase log |
+| `/vs alert` | Toggle alert sound/overlay |
 | `/vs autoclose` | Toggle auto-close after scan |
 
 ## Minimap Button
 
 - **Left-click** - Toggle the VendorSniper window
-- **Right-click** - Toggle sniping on/off
 
 ## Compatibility
 
-Works on Anniversary Edition (TBC 2.5.5).
+Works on Classic Era (1.15.x) and Anniversary Edition (TBC 2.5.5).
 
 ## License
 
