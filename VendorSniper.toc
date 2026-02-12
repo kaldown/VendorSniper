@@ -5,6 +5,8 @@
 ## Version: 0.1.0
 ## IconTexture: Interface\Icons\INV_Misc_SpyGlass_03
 ## X-License: MIT
+## X-Curse-Project-ID: 1460701
+## X-Wago-ID: nGv7VvNx
 ## SavedVariables: VendorSniperDB
 
 Libs\LibStub\LibStub.lua
