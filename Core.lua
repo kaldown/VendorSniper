@@ -75,6 +75,7 @@ local function InitializeDB()
     VendorSniperDB.autoClose = VendorSniperDB.autoClose ~= false -- default true
     VendorSniperDB.autoCloseDelay = VendorSniperDB.autoCloseDelay or AUTO_CLOSE_DELAY
     VendorSniperDB.alertDuration = VendorSniperDB.alertDuration or DEFAULT_ALERT_DURATION
+    VendorSniperDB.alertEnabled = VendorSniperDB.alertEnabled ~= false -- default true
     VendorSniperDB.log = VendorSniperDB.log or {}
 
     MigrateVendorsToWatchlist()
@@ -224,10 +225,15 @@ local soundTicker = nil
 function VS:PlayAlert(itemName, count, complete)
     local countStr = count > 1 and (count .. "x ") or ""
     local completeStr = complete and " (COMPLETE)" or ""
-    local msg = "VendorSniper: Bought " .. countStr .. (itemName or "item") .. completeStr
 
-    RaidNotice_AddMessage(RaidWarningFrame, msg, ChatTypeInfo["RAID_WARNING"])
+    -- Always print to chat
     print(ADDON_PREFIX .. "|cFF00FF00Bought|r " .. countStr .. (itemName or "item") .. (complete and " |cFF00FF00(COMPLETE)|r" or ""))
+
+    -- Sound + overlay gated by setting
+    if not VendorSniperDB.alertEnabled then return end
+
+    local msg = "VendorSniper: Bought " .. countStr .. (itemName or "item") .. completeStr
+    RaidNotice_AddMessage(RaidWarningFrame, msg, ChatTypeInfo["RAID_WARNING"])
 
     -- Looping sound
     if soundTicker then
@@ -971,6 +977,10 @@ SlashCmdList["VENDORSNIPER"] = function(msg)
         VendorSniperDB.autoClose = not VendorSniperDB.autoClose
         print(ADDON_PREFIX .. "Auto-close: " .. (VendorSniperDB.autoClose and "|cFF00FF00ON|r" or "|cFFFF0000OFF|r"))
 
+    elseif msg == "alert" then
+        VendorSniperDB.alertEnabled = not VendorSniperDB.alertEnabled
+        print(ADDON_PREFIX .. "Alerts: " .. (VendorSniperDB.alertEnabled and "|cFF00FF00ON|r" or "|cFFFF0000OFF|r"))
+
     elseif msg:match("^watch%s+") then
         local linkOrId = strtrim(rawMsg:match("^%w+%s+(.+)"))
         VS:WatchByLink(linkOrId)
@@ -985,6 +995,7 @@ SlashCmdList["VENDORSNIPER"] = function(msg)
         print("  /vs status - Show status")
         print("  /vs log - Show purchase log")
         print("  /vs autoclose - Toggle auto-close after scan")
+        print("  /vs alert - Toggle alert sound/overlay")
     end
 end
 
