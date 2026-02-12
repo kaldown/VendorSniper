@@ -1,4 +1,4 @@
-## Interface: 20505
+## Interface: 11508, 20505
 ## Title: VendorSniper
 ## Notes: Auto-buy limited-supply vendor items when they restock
 ## Author: kaldown
