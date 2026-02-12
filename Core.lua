@@ -276,6 +276,7 @@ end
 -- Watching Control
 --------------------------------------------------------------
 
+--[[ [SNIPING MODE] commented out for future reuse
 function VS:StartWatching()
     if isWatching then return end
     if not HasActiveWatchlist() then
@@ -307,6 +308,7 @@ function VS:StopWatching()
     self:UpdateFrame()
     print(ADDON_PREFIX .. "Sniping stopped")
 end
+--]] -- [SNIPING MODE]
 
 --------------------------------------------------------------
 -- Merchant Event Handlers
@@ -442,9 +444,11 @@ end
 
 function VS:ClearWatchlist()
     wipe(VendorSniperDB.watchlist)
+    --[[ [SNIPING MODE] commented out for future reuse
     if isWatching then
         self:StopWatching()
     end
+    --]] -- [SNIPING MODE]
     self:UpdateFrame()
     print(ADDON_PREFIX .. "Watchlist cleared")
 end
@@ -616,6 +620,7 @@ end
 --------------------------------------------------------------
 
 function VS:BuildFooter(parent)
+    --[[ [SNIPING MODE] commented out for future reuse
     -- Action button (Start Watching / Stop)
     local actionBtn = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
     actionBtn:SetSize(140, 24)
@@ -629,10 +634,11 @@ function VS:BuildFooter(parent)
         end
     end)
     self.actionBtn = actionBtn
+    --]] -- [SNIPING MODE]
 
     -- Refresh status
     local refreshText = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    refreshText:SetPoint("BOTTOMLEFT", 8, 38)
+    refreshText:SetPoint("BOTTOMLEFT", 8, 12)
     refreshText:SetTextColor(0.5, 0.5, 0.5)
     self.refreshText = refreshText
 end
@@ -653,13 +659,16 @@ end
 function VS:UpdateHeader()
     if not self.statusText then return end
 
+    --[[ [SNIPING MODE] commented out for future reuse
     if viewContext == "monitoring" then
         self.titleText:SetText("VendorSniper")
         self.titleText:SetTextColor(0.0, 1.0, 0.4)
         self.statusText:SetText("SNIPING")
         self.statusText:SetTextColor(0.0, 1.0, 0.4)
+    else
+    --]] -- [SNIPING MODE]
 
-    elseif viewContext == "vendor" then
+    if viewContext == "vendor" then
         self.titleText:SetText("VendorSniper")
         self.titleText:SetTextColor(0.2, 0.8, 1.0)
         local scanCount = #limitedItems
@@ -690,6 +699,7 @@ function VS:UpdateList()
 
     local items = {}
 
+    --[[ [SNIPING MODE] commented out for future reuse
     if viewContext == "monitoring" then
         -- Show active watched items with progress
         for itemId, data in pairs(VendorSniperDB.watchlist) do
@@ -711,8 +721,10 @@ function VS:UpdateList()
                 })
             end
         end
+    else
+    --]] -- [SNIPING MODE]
 
-    elseif viewContext == "vendor" then
+    if viewContext == "vendor" then
         -- Scanned limited items + global watchlist items not in scan
         local seen = {}
         for _, li in ipairs(limitedItems) do
@@ -769,14 +781,17 @@ function VS:UpdateList()
             row.nameText:SetText(item.name)
             row.nameText:SetTextColor(1.0, 1.0, 1.0)
 
+            --[[ [SNIPING MODE] commented out for future reuse
             if viewContext == "monitoring" then
                 row.check:Hide()
                 row.icon:ClearAllPoints()
                 row.icon:SetPoint("LEFT", 4, 0)
                 row.infoText:SetText(item.bought .. "/" .. item.target)
                 row.infoText:SetTextColor(0.6, 0.8, 1.0)
+            else
+            --]] -- [SNIPING MODE]
 
-            elseif viewContext == "vendor" then
+            if viewContext == "vendor" then
                 row.check:Show()
                 row.icon:ClearAllPoints()
                 row.icon:SetPoint("LEFT", row.check, "RIGHT", 2, 0)
@@ -813,9 +828,12 @@ function VS:UpdateList()
     end
 
     if numItems == 0 then
+        --[[ [SNIPING MODE] commented out for future reuse
         if viewContext == "monitoring" then
             self.emptyText:SetText("No items being watched")
-        elseif viewContext == "vendor" then
+        else
+        --]] -- [SNIPING MODE]
+        if viewContext == "vendor" then
             self.emptyText:SetText("No limited-supply items at this vendor")
         else
             self.emptyText:SetText("No watched items")
@@ -827,6 +845,7 @@ function VS:UpdateList()
 end
 
 function VS:UpdateFooter()
+    --[[ [SNIPING MODE] commented out for future reuse
     if not self.actionBtn then return end
 
     if viewContext == "monitoring" then
@@ -856,6 +875,15 @@ function VS:UpdateFooter()
         self.actionBtn:Hide()
         self.refreshText:SetText("Click to remove. Visit vendor to add.")
     end
+    --]] -- [SNIPING MODE]
+
+    if not self.refreshText then return end
+
+    if viewContext == "vendor" then
+        self.refreshText:SetText("Click items to watch. Shift-click for quantity.")
+    else -- watchlist
+        self.refreshText:SetText("Click to remove. Visit vendor to add.")
+    end
 end
 
 --------------------------------------------------------------
@@ -881,9 +909,12 @@ function VS:ToggleFrame()
         self:HideFrame()
     else
         -- Set view context based on current state
+        --[[ [SNIPING MODE] commented out for future reuse
         if isWatching then
             viewContext = "monitoring"
-        elseif merchantOpen then
+        else
+        --]] -- [SNIPING MODE]
+        if merchantOpen then
             viewContext = "vendor"
         else
             viewContext = "watchlist"
@@ -902,26 +933,30 @@ local dataObject = LDB:NewDataObject("VendorSniper", {
     OnClick = function(_, button)
         if button == "LeftButton" then
             VS:ToggleFrame()
+        --[[ [SNIPING MODE] commented out for future reuse
         elseif button == "RightButton" then
             if isWatching then
                 VS:StopWatching()
             else
                 VS:StartWatching()
             end
+        --]] -- [SNIPING MODE]
         end
     end,
     OnTooltipShow = function(tooltip)
         tooltip:AddLine("VendorSniper", 0.2, 0.8, 1.0)
         tooltip:AddLine(" ")
-        local status = isWatching and "|cFF00FF00SNIPING|r" or "|cFFFF0000OFF|r"
-        tooltip:AddLine("Status: " .. status, 1, 1, 1)
         local count = GetWatchedCount()
         if count > 0 then
             tooltip:AddLine("Watching: " .. count .. " item(s)", 0.7, 0.7, 0.7)
+        else
+            tooltip:AddLine("No items watched", 0.5, 0.5, 0.5)
         end
         tooltip:AddLine(" ")
         tooltip:AddLine("|cFFFFFFFFLeft-click:|r Toggle window", 0.7, 0.7, 0.7)
+        --[[ [SNIPING MODE] commented out for future reuse
         tooltip:AddLine("|cFFFFFFFFRight-click:|r Toggle sniping", 0.7, 0.7, 0.7)
+        --]] -- [SNIPING MODE]
     end,
 })
 
@@ -939,18 +974,19 @@ SlashCmdList["VENDORSNIPER"] = function(msg)
     if msg == "" then
         VS:ToggleFrame()
 
+    --[[ [SNIPING MODE] commented out for future reuse
     elseif msg == "start" then
         VS:StartWatching()
 
     elseif msg == "stop" then
         VS:StopWatching()
+    --]] -- [SNIPING MODE]
 
     elseif msg == "clear" then
         VS:ClearWatchlist()
 
     elseif msg == "status" then
-        local status = isWatching and "|cFF00FF00SNIPING|r" or "|cFFFF0000OFF|r"
-        print(ADDON_PREFIX .. "Status: " .. status)
+        print(ADDON_PREFIX .. "Alerts: " .. (VendorSniperDB.alertEnabled and "|cFF00FF00ON|r" or "|cFFFF0000OFF|r"))
         local count = GetWatchedCount()
         print(ADDON_PREFIX .. "Watching: " .. count .. " item(s)")
         for itemId, data in pairs(VendorSniperDB.watchlist) do
@@ -987,13 +1023,12 @@ SlashCmdList["VENDORSNIPER"] = function(msg)
         print(ADDON_PREFIX .. "v" .. VERSION .. " Commands:")
         print("  /vs - Toggle window")
         print("  /vs watch [itemlink] - Add item to watchlist")
-        print("  /vs start - Start sniping")
-        print("  /vs stop - Stop sniping")
+        -- [SNIPING MODE] /vs start, /vs stop commented out for future reuse
         print("  /vs clear - Clear watchlist")
         print("  /vs status - Show status")
         print("  /vs log - Show purchase log")
-        print("  /vs autoclose - Toggle auto-close after scan")
         print("  /vs alert - Toggle alert sound/overlay")
+        print("  /vs autoclose - Toggle auto-close after scan")
     end
 end
 
