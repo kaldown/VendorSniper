@@ -207,10 +207,9 @@ local function BuyWatchedItems()
         ScanMerchant()
     end
 
-    -- Check if all targets complete
-    if isWatching and not HasActiveWatchlist() then
-        VS:StopWatching()
-        print(ADDON_PREFIX .. "|cFF00FF00All targets complete!|r")
+    -- Notify if all targets complete
+    if anyBought and not HasActiveWatchlist() then
+        print(ADDON_PREFIX .. "|cFF00FF00All watchlist targets complete!|r")
     end
 
     return anyBought
@@ -323,14 +322,13 @@ function VS:OnMerchantShow()
 
     ScanMerchant()
 
-    if isWatching then
-        -- Stay in monitoring view, just scan+buy
-        local bought = BuyWatchedItems()
-        self:UpdateFrame()
-        ScheduleAutoClose()
-    elseif #limitedItems > 0 or HasActiveWatchlist() then
+    if #limitedItems > 0 or HasActiveWatchlist() then
         viewContext = "vendor"
         self:ShowFrame()
+        -- Auto-buy watchlist items if any are in stock
+        if HasActiveWatchlist() then
+            BuyWatchedItems()
+        end
         self:UpdateFrame()
     end
 end
@@ -1028,7 +1026,7 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
 
     elseif event == "MERCHANT_UPDATE" then
         -- Fires when merchant inventory changes (restock, purchase, etc.)
-        if isWatching and merchantOpen then
+        if merchantOpen and HasActiveWatchlist() then
             ScanMerchant()
             BuyWatchedItems()
             VS:UpdateFrame()
