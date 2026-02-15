@@ -209,6 +209,9 @@ local function BuyWatchedItems()
     -- Notify if all targets complete
     if anyBought and not HasActiveWatchlist() then
         print(ADDON_PREFIX .. "|cFF00FF00All watchlist targets complete!|r")
+        if sniping then
+            VS:StopSniping()
+        end
     end
 
     return anyBought
@@ -275,39 +278,33 @@ end
 -- Watching Control
 --------------------------------------------------------------
 
---[[ [SNIPING MODE] commented out for future reuse
-function VS:StartWatching()
-    if isWatching then return end
+function VS:StartSniping()
+    if sniping then return end
     if not HasActiveWatchlist() then
-        print(ADDON_PREFIX .. "No items to watch!")
+        print(ADDON_PREFIX .. "Watchlist is empty. Add items first.")
         return
     end
 
-    isWatching = true
-    viewContext = "monitoring"
+    sniping = true
     self:UpdateFrame()
-    print(ADDON_PREFIX .. "Sniping started")
+    local delay = VendorSniperDB.autoCloseDelay or AUTO_CLOSE_DELAY
+    print(ADDON_PREFIX .. "|cFF00FF00Snipe mode started.|r Auto-closing vendor every " .. delay .. "s.")
 
-    -- Immediate scan+buy if vendor is already open
+    -- Immediate close cycle if vendor is already open
     if merchantOpen then
-        ScanMerchant()
-        BuyWatchedItems()
-        self:UpdateFrame()
         ScheduleAutoClose()
     end
 end
 
-function VS:StopWatching()
-    isWatching = false
+function VS:StopSniping()
+    sniping = false
     if autoCloseTimer then
         autoCloseTimer:Cancel()
         autoCloseTimer = nil
     end
-    viewContext = merchantOpen and "vendor" or "watchlist"
     self:UpdateFrame()
-    print(ADDON_PREFIX .. "Sniping stopped")
+    print(ADDON_PREFIX .. "Snipe mode stopped.")
 end
---]] -- [SNIPING MODE]
 
 --------------------------------------------------------------
 -- Merchant Event Handlers
@@ -443,11 +440,9 @@ end
 
 function VS:ClearWatchlist()
     wipe(VendorSniperDB.watchlist)
-    --[[ [SNIPING MODE] commented out for future reuse
-    if isWatching then
-        self:StopWatching()
+    if sniping then
+        self:StopSniping()
     end
-    --]] -- [SNIPING MODE]
     self:UpdateFrame()
     print(ADDON_PREFIX .. "Watchlist cleared")
 end
