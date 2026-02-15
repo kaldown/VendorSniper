@@ -401,6 +401,9 @@ end
 
 function VS:RemoveWatch(itemId)
     VendorSniperDB.watchlist[itemId] = nil
+    if sniping and not HasActiveWatchlist() then
+        self:StopSniping()
+    end
     self:UpdateFrame()
 end
 
