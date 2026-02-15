@@ -31,7 +31,7 @@ local DEFAULT_ALERT_DURATION = 5
 
 VendorSniperDB = VendorSniperDB or {}
 
-local isWatching = false
+local sniping = false
 local merchantOpen = false
 local currentVendorID = nil
 local currentVendorGUID = nil
@@ -72,7 +72,6 @@ end
 local function InitializeDB()
     VendorSniperDB.minimap = VendorSniperDB.minimap or { hide = false }
     VendorSniperDB.position = VendorSniperDB.position or nil
-    VendorSniperDB.autoClose = VendorSniperDB.autoClose ~= false -- default true
     VendorSniperDB.autoCloseDelay = VendorSniperDB.autoCloseDelay or AUTO_CLOSE_DELAY
     VendorSniperDB.alertDuration = VendorSniperDB.alertDuration or DEFAULT_ALERT_DURATION
     VendorSniperDB.alertEnabled = VendorSniperDB.alertEnabled ~= false -- default true
@@ -258,7 +257,7 @@ end
 --------------------------------------------------------------
 
 local function ScheduleAutoClose()
-    if not VendorSniperDB.autoClose then return end
+    if not sniping then return end
     if not merchantOpen then return end
     if autoCloseTimer then
         autoCloseTimer:Cancel()
@@ -266,7 +265,7 @@ local function ScheduleAutoClose()
     local delay = VendorSniperDB.autoCloseDelay or AUTO_CLOSE_DELAY
     autoCloseTimer = C_Timer.NewTimer(delay, function()
         autoCloseTimer = nil
-        if merchantOpen and isWatching then
+        if merchantOpen and sniping then
             CloseMerchant()
         end
     end)
@@ -974,18 +973,18 @@ SlashCmdList["VENDORSNIPER"] = function(msg)
     if msg == "" then
         VS:ToggleFrame()
 
-    --[[ [SNIPING MODE] commented out for future reuse
-    elseif msg == "start" then
-        VS:StartWatching()
-
-    elseif msg == "stop" then
-        VS:StopWatching()
-    --]] -- [SNIPING MODE]
+    elseif msg == "snipe" then
+        if sniping then
+            VS:StopSniping()
+        else
+            VS:StartSniping()
+        end
 
     elseif msg == "clear" then
         VS:ClearWatchlist()
 
     elseif msg == "status" then
+        print(ADDON_PREFIX .. "Snipe mode: " .. (sniping and "|cFF00FF00ON|r" or "|cFFFF0000OFF|r"))
         print(ADDON_PREFIX .. "Alerts: " .. (VendorSniperDB.alertEnabled and "|cFF00FF00ON|r" or "|cFFFF0000OFF|r"))
         local count = GetWatchedCount()
         print(ADDON_PREFIX .. "Watching: " .. count .. " item(s)")
@@ -1007,10 +1006,6 @@ SlashCmdList["VENDORSNIPER"] = function(msg)
             end
         end
 
-    elseif msg == "autoclose" then
-        VendorSniperDB.autoClose = not VendorSniperDB.autoClose
-        print(ADDON_PREFIX .. "Auto-close: " .. (VendorSniperDB.autoClose and "|cFF00FF00ON|r" or "|cFFFF0000OFF|r"))
-
     elseif msg == "alert" then
         VendorSniperDB.alertEnabled = not VendorSniperDB.alertEnabled
         print(ADDON_PREFIX .. "Alerts: " .. (VendorSniperDB.alertEnabled and "|cFF00FF00ON|r" or "|cFFFF0000OFF|r"))
@@ -1023,12 +1018,11 @@ SlashCmdList["VENDORSNIPER"] = function(msg)
         print(ADDON_PREFIX .. "v" .. VERSION .. " Commands:")
         print("  /vs - Toggle window")
         print("  /vs watch [itemlink] - Add item to watchlist")
-        -- [SNIPING MODE] /vs start, /vs stop commented out for future reuse
+        print("  /vs snipe - Toggle snipe mode (auto-close for AFK restock)")
         print("  /vs clear - Clear watchlist")
         print("  /vs status - Show status")
         print("  /vs log - Show purchase log")
         print("  /vs alert - Toggle alert sound/overlay")
-        print("  /vs autoclose - Toggle auto-close after scan")
     end
 end
 
