@@ -2,7 +2,7 @@
 ## Title: VendorSniper
 ## Notes: Auto-buy limited-supply vendor items when they restock
 ## Author: kaldown
-## Version: 0.2.0
+## Version: 0.3.0
 ## IconTexture: Interface\Icons\INV_Misc_SpyGlass_03
 ## X-License: MIT
 ## X-Curse-Project-ID: 1460701
