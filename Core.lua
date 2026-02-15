@@ -38,7 +38,7 @@ local currentVendorGUID = nil
 local currentVendorName = nil
 local autoCloseTimer = nil
 local limitedItems = {} -- scanned limited supply items (valid only while merchant open)
-local viewContext = "watchlist" -- "vendor" | "watchlist" | "monitoring"
+local viewContext = "watchlist" -- "vendor" | "watchlist"
 
 --------------------------------------------------------------
 -- DB
@@ -341,7 +341,6 @@ function VS:OnMerchantClose()
         autoCloseTimer:Cancel()
         autoCloseTimer = nil
     end
-    -- Transition vendor view to watchlist (monitoring stays monitoring)
     if viewContext == "vendor" then
         viewContext = "watchlist"
     end
@@ -617,23 +616,6 @@ end
 --------------------------------------------------------------
 
 function VS:BuildFooter(parent)
-    --[[ [SNIPING MODE] commented out for future reuse
-    -- Action button (Start Watching / Stop)
-    local actionBtn = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-    actionBtn:SetSize(140, 24)
-    actionBtn:SetPoint("BOTTOM", 0, 10)
-    actionBtn:SetText("Start Watching")
-    actionBtn:SetScript("OnClick", function()
-        if isWatching then
-            VS:StopWatching()
-        else
-            VS:StartWatching()
-        end
-    end)
-    self.actionBtn = actionBtn
-    --]] -- [SNIPING MODE]
-
-    -- Refresh status
     local refreshText = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     refreshText:SetPoint("BOTTOMLEFT", 8, 12)
     refreshText:SetTextColor(0.5, 0.5, 0.5)
@@ -699,31 +681,6 @@ function VS:UpdateList()
 
     local items = {}
 
-    --[[ [SNIPING MODE] commented out for future reuse
-    if viewContext == "monitoring" then
-        -- Show active watched items with progress
-        for itemId, data in pairs(VendorSniperDB.watchlist) do
-            if data.target > data.bought then
-                -- Try to find texture from current scan
-                local tex = "Interface\\Icons\\INV_Misc_QuestionMark"
-                for _, li in ipairs(limitedItems) do
-                    if li.itemId == itemId then
-                        tex = li.texture
-                        break
-                    end
-                end
-                tinsert(items, {
-                    itemId = itemId,
-                    name = data.name,
-                    texture = tex,
-                    bought = data.bought,
-                    target = data.target,
-                })
-            end
-        end
-    else
-    --]] -- [SNIPING MODE]
-
     if viewContext == "vendor" then
         -- Scanned limited items + global watchlist items not in scan
         local seen = {}
@@ -781,16 +738,6 @@ function VS:UpdateList()
             row.nameText:SetText(item.name)
             row.nameText:SetTextColor(1.0, 1.0, 1.0)
 
-            --[[ [SNIPING MODE] commented out for future reuse
-            if viewContext == "monitoring" then
-                row.check:Hide()
-                row.icon:ClearAllPoints()
-                row.icon:SetPoint("LEFT", 4, 0)
-                row.infoText:SetText(item.bought .. "/" .. item.target)
-                row.infoText:SetTextColor(0.6, 0.8, 1.0)
-            else
-            --]] -- [SNIPING MODE]
-
             if viewContext == "vendor" then
                 row.check:Show()
                 row.icon:ClearAllPoints()
@@ -828,11 +775,6 @@ function VS:UpdateList()
     end
 
     if numItems == 0 then
-        --[[ [SNIPING MODE] commented out for future reuse
-        if viewContext == "monitoring" then
-            self.emptyText:SetText("No items being watched")
-        else
-        --]] -- [SNIPING MODE]
         if viewContext == "vendor" then
             self.emptyText:SetText("No limited-supply items at this vendor")
         else
@@ -903,14 +845,6 @@ local dataObject = LDB:NewDataObject("VendorSniper", {
     OnClick = function(_, button)
         if button == "LeftButton" then
             VS:ToggleFrame()
-        --[[ [SNIPING MODE] commented out for future reuse
-        elseif button == "RightButton" then
-            if isWatching then
-                VS:StopWatching()
-            else
-                VS:StartWatching()
-            end
-        --]] -- [SNIPING MODE]
         end
     end,
     OnTooltipShow = function(tooltip)
