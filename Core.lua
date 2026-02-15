@@ -656,18 +656,8 @@ end
 function VS:UpdateHeader()
     if not self.statusText then return end
 
-    --[[ [SNIPING MODE] commented out for future reuse
-    if viewContext == "monitoring" then
-        self.titleText:SetText("VendorSniper")
-        self.titleText:SetTextColor(0.0, 1.0, 0.4)
-        self.statusText:SetText("SNIPING")
-        self.statusText:SetTextColor(0.0, 1.0, 0.4)
-    else
-    --]] -- [SNIPING MODE]
-
     if viewContext == "vendor" then
         self.titleText:SetText("VendorSniper")
-        self.titleText:SetTextColor(0.2, 0.8, 1.0)
         local scanCount = #limitedItems
         local watchCount = GetWatchedCount()
         local parts = {}
@@ -675,18 +665,31 @@ function VS:UpdateHeader()
         if watchCount > 0 then tinsert(parts, watchCount .. " watched") end
         local suffix = #parts > 0 and (" - " .. table.concat(parts, ", ")) or ""
         self.statusText:SetText((currentVendorName or "Vendor") .. suffix)
-        self.statusText:SetTextColor(0.7, 0.7, 0.7)
+
+        if sniping then
+            self.titleText:SetTextColor(0.0, 1.0, 0.4)
+            self.statusText:SetTextColor(0.0, 1.0, 0.4)
+        else
+            self.titleText:SetTextColor(0.2, 0.8, 1.0)
+            self.statusText:SetTextColor(0.7, 0.7, 0.7)
+        end
 
     else -- watchlist
         self.titleText:SetText("VendorSniper")
-        self.titleText:SetTextColor(0.2, 0.8, 1.0)
         local count = GetWatchedCount()
-        if count > 0 then
-            self.statusText:SetText("Watchlist - " .. count .. " item(s)")
+        if sniping then
+            self.titleText:SetTextColor(0.0, 1.0, 0.4)
+            self.statusText:SetText("SNIPING - " .. count .. " watched")
+            self.statusText:SetTextColor(0.0, 1.0, 0.4)
         else
-            self.statusText:SetText("Watchlist")
+            self.titleText:SetTextColor(0.2, 0.8, 1.0)
+            if count > 0 then
+                self.statusText:SetText("Watchlist - " .. count .. " item(s)")
+            else
+                self.statusText:SetText("Watchlist")
+            end
+            self.statusText:SetTextColor(0.7, 0.7, 0.7)
         end
-        self.statusText:SetTextColor(0.7, 0.7, 0.7)
     end
 end
 
@@ -842,44 +845,20 @@ function VS:UpdateList()
 end
 
 function VS:UpdateFooter()
-    --[[ [SNIPING MODE] commented out for future reuse
-    if not self.actionBtn then return end
-
-    if viewContext == "monitoring" then
-        self.actionBtn:Show()
-        self.actionBtn:Enable()
-        self.actionBtn:SetText("Stop")
-
-        if not merchantOpen then
-            self.refreshText:SetText("|cFFFF4444PAUSED|r - reopen vendor")
-        else
-            self.refreshText:SetText("|cFF00FF00Active|r - " .. GetWatchedCount() .. " item(s) watched")
-        end
-
-    elseif viewContext == "vendor" then
-        self.actionBtn:Show()
-        local count = GetWatchedCount()
-        if count > 0 then
-            self.actionBtn:SetText("Start Watching (" .. count .. ")")
-            self.actionBtn:Enable()
-        else
-            self.actionBtn:SetText("Select items to watch")
-            self.actionBtn:Disable()
-        end
-        self.refreshText:SetText("Click items to watch. Shift-click for quantity.")
-
-    else -- watchlist
-        self.actionBtn:Hide()
-        self.refreshText:SetText("Click to remove. Visit vendor to add.")
-    end
-    --]] -- [SNIPING MODE]
-
     if not self.refreshText then return end
 
     if viewContext == "vendor" then
-        self.refreshText:SetText("Click items to watch. Shift-click for quantity.")
+        if sniping then
+            self.refreshText:SetText("|cFF00FF00SNIPING|r - vendor will auto-close")
+        else
+            self.refreshText:SetText("Click items to watch. Shift-click for quantity.")
+        end
     else -- watchlist
-        self.refreshText:SetText("Click to remove. Visit vendor to add.")
+        if sniping then
+            self.refreshText:SetText("|cFF00FF00SNIPING|r - open vendor to start cycle")
+        else
+            self.refreshText:SetText("Click to remove. Visit vendor to add.")
+        end
     end
 end
 
@@ -905,12 +884,6 @@ function VS:ToggleFrame()
     if self.frame and self.frame:IsShown() then
         self:HideFrame()
     else
-        -- Set view context based on current state
-        --[[ [SNIPING MODE] commented out for future reuse
-        if isWatching then
-            viewContext = "monitoring"
-        else
-        --]] -- [SNIPING MODE]
         if merchantOpen then
             viewContext = "vendor"
         else
@@ -943,6 +916,9 @@ local dataObject = LDB:NewDataObject("VendorSniper", {
     OnTooltipShow = function(tooltip)
         tooltip:AddLine("VendorSniper", 0.2, 0.8, 1.0)
         tooltip:AddLine(" ")
+        if sniping then
+            tooltip:AddLine("Snipe mode: ON", 0.0, 1.0, 0.4)
+        end
         local count = GetWatchedCount()
         if count > 0 then
             tooltip:AddLine("Watching: " .. count .. " item(s)", 0.7, 0.7, 0.7)
@@ -951,9 +927,6 @@ local dataObject = LDB:NewDataObject("VendorSniper", {
         end
         tooltip:AddLine(" ")
         tooltip:AddLine("|cFFFFFFFFLeft-click:|r Toggle window", 0.7, 0.7, 0.7)
-        --[[ [SNIPING MODE] commented out for future reuse
-        tooltip:AddLine("|cFFFFFFFFRight-click:|r Toggle sniping", 0.7, 0.7, 0.7)
-        --]] -- [SNIPING MODE]
     end,
 })
 
