@@ -329,6 +329,9 @@ function VS:OnMerchantShow()
         end
         self:UpdateFrame()
     end
+
+    -- Auto-close for snipe loop (fires regardless of whether items were bought)
+    ScheduleAutoClose()
 end
 
 function VS:OnMerchantClose()
