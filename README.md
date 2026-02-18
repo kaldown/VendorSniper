@@ -11,6 +11,8 @@ Other addons:
 - [LazyProf](https://www.curseforge.com/wow/addons/lazyprof) - Profession leveling optimizer
 - [Silencer](https://www.curseforge.com/wow/addons/silencer-whispers) - Whisper gatekeeper
 - [CraftLib](https://www.curseforge.com/wow/addons/craftlib) - Recipe database
+- [PickMe](https://www.curseforge.com/wow/addons/pickme) - LFG listing browser
+- [EyesOnMe](https://www.curseforge.com/wow/addons/eyesonme) - PvP targeting awareness
 
 Never miss a limited-supply vendor restock again. Park an alt at a vendor, pick the items you want, and VendorSniper auto-buys them the instant they restock.
 
