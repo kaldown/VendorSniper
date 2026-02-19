@@ -8,6 +8,7 @@ externals:
   Libs/LibDBIcon-1.0: https://github.com/kaldown/LibDBIcon-1.0
 
 ignore:
+  - AutoBuy.lua
   - .git
   - .github
   - .claude
