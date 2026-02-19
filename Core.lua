@@ -603,8 +603,22 @@ end
 --------------------------------------------------------------
 
 function VS:BuildFooter(parent)
+    -- Buy All button (only shown in vendor view when watched items are in stock)
+    local buyBtn = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+    buyBtn:SetSize(100, 22)
+    buyBtn:SetPoint("BOTTOMRIGHT", -8, 10)
+    buyBtn:SetText("Buy All")
+    buyBtn:SetScript("OnClick", function()
+        if VS.merchantOpen and HasActiveWatchlist() then
+            VS:BuyWatchedItems()
+            VS:UpdateFrame()
+        end
+    end)
+    buyBtn:Hide()
+    self.buyAllBtn = buyBtn
+
     local refreshText = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    refreshText:SetPoint("BOTTOMLEFT", 8, 12)
+    refreshText:SetPoint("BOTTOMLEFT", 8, 16)
     refreshText:SetTextColor(0.5, 0.5, 0.5)
     self.refreshText = refreshText
 end
@@ -777,16 +791,35 @@ function VS:UpdateFooter()
     if not self.refreshText then return end
 
     if viewContext == "vendor" then
-        if VS.sniping then
-            self.refreshText:SetText("|cFF00FF00SNIPING|r - vendor will auto-close")
+        local hasStock = VS.merchantOpen and HasActiveWatchlist() and self:CheckWatchedInStock()
+        if hasStock then
+            self.refreshText:SetText("Watched items in stock!")
+            self.refreshText:SetTextColor(0.0, 1.0, 0.0)
+            if self.buyAllBtn then
+                self.buyAllBtn:Show()
+            end
         else
             self.refreshText:SetText("Click items to watch. Shift-click for quantity.")
+            self.refreshText:SetTextColor(0.5, 0.5, 0.5)
+            if self.buyAllBtn then
+                self.buyAllBtn:Hide()
+            end
+        end
+        -- Sniping status overlay (set by AutoBuy.lua when loaded)
+        if VS.sniping then
+            self.refreshText:SetText("|cFF00FF00SNIPING|r - vendor will auto-close")
+            self.refreshText:SetTextColor(0.0, 1.0, 0.0)
         end
     else -- watchlist
+        if self.buyAllBtn then
+            self.buyAllBtn:Hide()
+        end
         if VS.sniping then
             self.refreshText:SetText("|cFF00FF00SNIPING|r - open vendor to start cycle")
+            self.refreshText:SetTextColor(0.0, 1.0, 0.0)
         else
             self.refreshText:SetText("Click to remove. Visit vendor to add.")
+            self.refreshText:SetTextColor(0.5, 0.5, 0.5)
         end
     end
 end
