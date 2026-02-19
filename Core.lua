@@ -1,5 +1,5 @@
--- VendorSniper: Auto-buy limited-supply vendor items on restock
--- Park an alt at a vendor, pick items to watch, auto-buy when they restock
+-- VendorSniper: Track and buy limited-supply vendor items
+-- Watch for items you want, get alerts when in stock, buy with one click
 
 local ADDON_NAME, VS = ...
 
@@ -31,12 +31,11 @@ local DEFAULT_ALERT_DURATION = 5
 
 VendorSniperDB = VendorSniperDB or {}
 
-local sniping = false
-local merchantOpen = false
+VS.sniping = false
+VS.merchantOpen = false
 local currentVendorID = nil
 local currentVendorGUID = nil
 local currentVendorName = nil
-local autoCloseTimer = nil
 local limitedItems = {} -- scanned limited supply items (valid only while merchant open)
 local viewContext = "watchlist" -- "vendor" | "watchlist"
 
@@ -100,6 +99,8 @@ local function HasActiveWatchlist()
     return false
 end
 
+VS.HasActiveWatchlist = HasActiveWatchlist
+
 local function GetWatchedCount()
     local count = 0
     for _, data in pairs(VendorSniperDB.watchlist) do
@@ -145,11 +146,39 @@ local function ScanMerchant()
     return limitedItems
 end
 
+function VS:CheckWatchedInStock()
+    local watchlist = VendorSniperDB.watchlist
+    if not next(watchlist) then return false end
+
+    local numItems = GetMerchantNumItems()
+    for i = 1, numItems do
+        local name, texture, price, quantity, numAvailable = GetMerchantItemInfo(i)
+        local isAvailable = numAvailable == -1 or numAvailable > 0
+        if isAvailable then
+            local itemLink = GetMerchantItemLink(i)
+            local itemId = itemLink and tonumber(itemLink:match("item:(%d+)"))
+            if itemId and watchlist[itemId] then
+                local watchData = watchlist[itemId]
+                if watchData.target > watchData.bought then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+function VS:PlayStockAlert()
+    if not VendorSniperDB.alertEnabled then return end
+    PlaySound(ALERT_SOUND_ID, "Master")
+    RaidNotice_AddMessage(RaidWarningFrame, "VendorSniper: Watched items in stock!", ChatTypeInfo["RAID_WARNING"])
+end
+
 --------------------------------------------------------------
 -- Purchase Logic
 --------------------------------------------------------------
 
-local function BuyWatchedItems()
+function VS:BuyWatchedItems()
     local watchlist = VendorSniperDB.watchlist
     if not next(watchlist) then return false end
 
@@ -209,8 +238,8 @@ local function BuyWatchedItems()
     -- Notify if all targets complete
     if anyBought and not HasActiveWatchlist() then
         print(ADDON_PREFIX .. "|cFF00FF00All watchlist targets complete!|r")
-        if sniping then
-            VS:StopSniping()
+        if VS.OnAllTargetsComplete then
+            VS:OnAllTargetsComplete()
         end
     end
 
@@ -256,62 +285,11 @@ function VS:PlayAlert(itemName, count, complete)
 end
 
 --------------------------------------------------------------
--- Auto-close (after scan/buy, prepare for external reopen)
---------------------------------------------------------------
-
-local function ScheduleAutoClose()
-    if not sniping then return end
-    if not merchantOpen then return end
-    if autoCloseTimer then
-        autoCloseTimer:Cancel()
-    end
-    local delay = VendorSniperDB.autoCloseDelay or AUTO_CLOSE_DELAY
-    autoCloseTimer = C_Timer.NewTimer(delay, function()
-        autoCloseTimer = nil
-        if merchantOpen and sniping then
-            CloseMerchant()
-        end
-    end)
-end
-
---------------------------------------------------------------
--- Watching Control
---------------------------------------------------------------
-
-function VS:StartSniping()
-    if sniping then return end
-    if not HasActiveWatchlist() then
-        print(ADDON_PREFIX .. "Watchlist is empty. Add items first.")
-        return
-    end
-
-    sniping = true
-    self:UpdateFrame()
-    local delay = VendorSniperDB.autoCloseDelay or AUTO_CLOSE_DELAY
-    print(ADDON_PREFIX .. "|cFF00FF00Snipe mode started.|r Auto-closing vendor every " .. delay .. "s.")
-
-    -- Immediate close cycle if vendor is already open
-    if merchantOpen then
-        ScheduleAutoClose()
-    end
-end
-
-function VS:StopSniping()
-    sniping = false
-    if autoCloseTimer then
-        autoCloseTimer:Cancel()
-        autoCloseTimer = nil
-    end
-    self:UpdateFrame()
-    print(ADDON_PREFIX .. "Snipe mode stopped.")
-end
-
---------------------------------------------------------------
 -- Merchant Event Handlers
 --------------------------------------------------------------
 
 function VS:OnMerchantShow()
-    merchantOpen = true
+    VS.merchantOpen = true
 
     local guid = UnitGUID("npc")
     currentVendorGUID = guid
@@ -323,23 +301,25 @@ function VS:OnMerchantShow()
     if #limitedItems > 0 or HasActiveWatchlist() then
         viewContext = "vendor"
         self:ShowFrame()
-        -- Auto-buy watchlist items if any are in stock
-        if HasActiveWatchlist() then
-            BuyWatchedItems()
+        -- Alert if watched items are in stock (no auto-buy)
+        if HasActiveWatchlist() and self:CheckWatchedInStock() then
+            self:PlayStockAlert()
         end
         self:UpdateFrame()
     end
 
-    -- Auto-close for snipe loop (fires regardless of whether items were bought)
-    ScheduleAutoClose()
+    -- Hook for AutoBuy.lua (auto-buy + auto-close)
+    if self.OnMerchantShowPost then
+        self:OnMerchantShowPost()
+    end
 end
 
 function VS:OnMerchantClose()
-    merchantOpen = false
+    VS.merchantOpen = false
     wipe(limitedItems)
-    if autoCloseTimer then
-        autoCloseTimer:Cancel()
-        autoCloseTimer = nil
+    -- Hook for AutoBuy.lua (cancel auto-close timer)
+    if self.OnMerchantClosePost then
+        self:OnMerchantClosePost()
     end
     if viewContext == "vendor" then
         viewContext = "watchlist"
@@ -401,8 +381,10 @@ end
 
 function VS:RemoveWatch(itemId)
     VendorSniperDB.watchlist[itemId] = nil
-    if sniping and not HasActiveWatchlist() then
-        self:StopSniping()
+    if VS.sniping and not HasActiveWatchlist() then
+        if VS.StopSniping then
+            VS:StopSniping()
+        end
     end
     self:UpdateFrame()
 end
@@ -445,8 +427,10 @@ end
 
 function VS:ClearWatchlist()
     wipe(VendorSniperDB.watchlist)
-    if sniping then
-        self:StopSniping()
+    if VS.sniping then
+        if VS.StopSniping then
+            VS:StopSniping()
+        end
     end
     self:UpdateFrame()
     print(ADDON_PREFIX .. "Watchlist cleared")
@@ -651,7 +635,7 @@ function VS:UpdateHeader()
         local suffix = #parts > 0 and (" - " .. table.concat(parts, ", ")) or ""
         self.statusText:SetText((currentVendorName or "Vendor") .. suffix)
 
-        if sniping then
+        if VS.sniping then
             self.titleText:SetTextColor(0.0, 1.0, 0.4)
             self.statusText:SetTextColor(0.0, 1.0, 0.4)
         else
@@ -662,7 +646,7 @@ function VS:UpdateHeader()
     else -- watchlist
         self.titleText:SetText("VendorSniper")
         local count = GetWatchedCount()
-        if sniping then
+        if VS.sniping then
             self.titleText:SetTextColor(0.0, 1.0, 0.4)
             self.statusText:SetText("SNIPING - " .. count .. " watched")
             self.statusText:SetTextColor(0.0, 1.0, 0.4)
@@ -793,13 +777,13 @@ function VS:UpdateFooter()
     if not self.refreshText then return end
 
     if viewContext == "vendor" then
-        if sniping then
+        if VS.sniping then
             self.refreshText:SetText("|cFF00FF00SNIPING|r - vendor will auto-close")
         else
             self.refreshText:SetText("Click items to watch. Shift-click for quantity.")
         end
     else -- watchlist
-        if sniping then
+        if VS.sniping then
             self.refreshText:SetText("|cFF00FF00SNIPING|r - open vendor to start cycle")
         else
             self.refreshText:SetText("Click to remove. Visit vendor to add.")
@@ -829,7 +813,7 @@ function VS:ToggleFrame()
     if self.frame and self.frame:IsShown() then
         self:HideFrame()
     else
-        if merchantOpen then
+        if VS.merchantOpen then
             viewContext = "vendor"
         else
             viewContext = "watchlist"
@@ -853,7 +837,7 @@ local dataObject = LDB:NewDataObject("VendorSniper", {
     OnTooltipShow = function(tooltip)
         tooltip:AddLine("VendorSniper", 0.2, 0.8, 1.0)
         tooltip:AddLine(" ")
-        if sniping then
+        if VS.sniping then
             tooltip:AddLine("Snipe mode: ON", 0.0, 1.0, 0.4)
         end
         local count = GetWatchedCount()
@@ -882,17 +866,19 @@ SlashCmdList["VENDORSNIPER"] = function(msg)
         VS:ToggleFrame()
 
     elseif msg == "snipe" then
-        if sniping then
-            VS:StopSniping()
+        if VS.ToggleSnipe then
+            VS:ToggleSnipe()
         else
-            VS:StartSniping()
+            print(ADDON_PREFIX .. "Snipe mode not available.")
         end
 
     elseif msg == "clear" then
         VS:ClearWatchlist()
 
     elseif msg == "status" then
-        print(ADDON_PREFIX .. "Snipe mode: " .. (sniping and "|cFF00FF00ON|r" or "|cFFFF0000OFF|r"))
+        if VS.sniping then
+            print(ADDON_PREFIX .. "Snipe mode: |cFF00FF00ON|r")
+        end
         print(ADDON_PREFIX .. "Alerts: " .. (VendorSniperDB.alertEnabled and "|cFF00FF00ON|r" or "|cFFFF0000OFF|r"))
         local count = GetWatchedCount()
         print(ADDON_PREFIX .. "Watching: " .. count .. " item(s)")
@@ -926,7 +912,9 @@ SlashCmdList["VENDORSNIPER"] = function(msg)
         print(ADDON_PREFIX .. "v" .. VERSION .. " Commands:")
         print("  /vs - Toggle window")
         print("  /vs watch [itemlink] - Add item to watchlist")
-        print("  /vs snipe - Toggle snipe mode (auto-close for AFK restock)")
+        if VS.ToggleSnipe then
+            print("  /vs snipe - Toggle snipe mode")
+        end
         print("  /vs clear - Clear watchlist")
         print("  /vs status - Show status")
         print("  /vs log - Show purchase log")
@@ -962,10 +950,12 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
         VS:OnMerchantClose()
 
     elseif event == "MERCHANT_UPDATE" then
-        -- Fires when merchant inventory changes (restock, purchase, etc.)
-        if merchantOpen and HasActiveWatchlist() then
+        if VS.merchantOpen then
             ScanMerchant()
-            BuyWatchedItems()
+            -- Hook for AutoBuy.lua (auto-buy on restock)
+            if VS.OnMerchantUpdatePost then
+                VS:OnMerchantUpdatePost()
+            end
             VS:UpdateFrame()
         end
     end
