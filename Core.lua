@@ -90,9 +90,19 @@ local function GetNPCIDFromGUID(guid)
     return npcID and tonumber(npcID)
 end
 
+local function IsForeverWatch(watchData)
+    return watchData.target < 0
+end
+
+local function GetPerVisitCap(watchData)
+    return math.abs(watchData.target)
+end
+
+VS.IsForeverWatch = IsForeverWatch
+
 local function HasActiveWatchlist()
     for _, data in pairs(VendorSniperDB.watchlist) do
-        if data.target > data.bought then
+        if IsForeverWatch(data) or data.target > data.bought then
             return true
         end
     end
@@ -104,7 +114,7 @@ VS.HasActiveWatchlist = HasActiveWatchlist
 local function GetWatchedCount()
     local count = 0
     for _, data in pairs(VendorSniperDB.watchlist) do
-        if data.target > data.bought then
+        if IsForeverWatch(data) or data.target > data.bought then
             count = count + 1
         end
     end
@@ -114,7 +124,7 @@ end
 local function IsItemWatched(itemId)
     local data = VendorSniperDB.watchlist[itemId]
     if not data then return false end
-    return data.target > data.bought
+    return IsForeverWatch(data) or data.target > data.bought
 end
 
 --------------------------------------------------------------
