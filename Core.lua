@@ -622,8 +622,7 @@ function VS:CreateRow(parent, index)
     row:EnableMouse(true)
     row:SetScript("OnMouseDown", function(self, button)
         -- Ignore clicks on stepper buttons (they handle themselves)
-        local focus = GetMouseFocus()
-        if focus == row.minusBtn or focus == row.plusBtn then return end
+        if row.minusBtn:IsMouseOver() or row.plusBtn:IsMouseOver() then return end
         if button == "LeftButton" and self.itemId then
             if viewContext == "vendor" then
                 VS:ToggleWatch(self.itemId, self.itemName)
