@@ -169,7 +169,7 @@ function VS:CheckWatchedInStock()
             local itemId = itemLink and tonumber(itemLink:match("item:(%d+)"))
             if itemId and watchlist[itemId] then
                 local watchData = watchlist[itemId]
-                if watchData.target > watchData.bought then
+                if IsForeverWatch(watchData) or watchData.target > watchData.bought then
                     return true
                 end
             end
@@ -197,7 +197,6 @@ function VS:BuyWatchedItems()
 
     for i = 1, numItems do
         local name, texture, price, quantity, numAvailable, isUsable, extendedCost = GetMerchantItemInfo(i)
-        -- numAvailable: -1 = unlimited, 0 = out of stock, >0 = limited in stock
         local isAvailable = numAvailable == -1 or numAvailable > 0
         if isAvailable then
             local itemLink = GetMerchantItemLink(i)
@@ -205,11 +204,23 @@ function VS:BuyWatchedItems()
 
             if itemId and watchlist[itemId] then
                 local watchData = watchlist[itemId]
-                local remaining = watchData.target - watchData.bought
 
-                if remaining > 0 then
+                local canBuy = 0
+
+                if IsForeverWatch(watchData) then
+                    -- Forever: buy up to per-visit cap
+                    local cap = GetPerVisitCap(watchData)
+                    canBuy = numAvailable == -1 and cap or math.min(cap, numAvailable)
+                else
+                    -- Finite: buy remaining toward target
+                    local remaining = watchData.target - watchData.bought
+                    if remaining > 0 then
+                        canBuy = numAvailable == -1 and remaining or math.min(remaining, numAvailable)
+                    end
+                end
+
+                if canBuy > 0 then
                     if GetMoney() >= price then
-                        local canBuy = numAvailable == -1 and remaining or math.min(remaining, numAvailable)
                         for j = 1, canBuy do
                             BuyMerchantItem(i, 1)
                         end
@@ -224,15 +235,17 @@ function VS:BuyWatchedItems()
                             time = time(),
                         })
 
-                        local complete = watchData.bought >= watchData.target
-
-                        if complete then
-                            -- Full alert: sound + raid warning
-                            VS:PlayAlert(name, canBuy, true)
+                        if IsForeverWatch(watchData) then
+                            -- Forever: always quiet chat message, never "complete"
+                            print(ADDON_PREFIX .. "|cFF00FF00Bought|r " .. canBuy .. "x " .. (name or "item") .. " (" .. watchData.bought .. " total)")
                         else
-                            -- Quiet: chat only, no sound
-                            local progress = watchData.bought .. "/" .. watchData.target
-                            print(ADDON_PREFIX .. "|cFF00FF00Bought|r " .. canBuy .. "x " .. (name or "item") .. " (" .. progress .. ")")
+                            local complete = watchData.bought >= watchData.target
+                            if complete then
+                                VS:PlayAlert(name, canBuy, true)
+                            else
+                                local progress = watchData.bought .. "/" .. watchData.target
+                                print(ADDON_PREFIX .. "|cFF00FF00Bought|r " .. canBuy .. "x " .. (name or "item") .. " (" .. progress .. ")")
+                            end
                         end
 
                         anyBought = true
@@ -244,12 +257,10 @@ function VS:BuyWatchedItems()
         end
     end
 
-    -- Re-scan to update stock counts after purchases
     if anyBought then
         ScanMerchant()
     end
 
-    -- Notify if all targets complete
     if anyBought and not HasActiveWatchlist() then
         print(ADDON_PREFIX .. "|cFF00FF00All watchlist targets complete!|r")
         if VS.OnAllTargetsComplete then
