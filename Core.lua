@@ -215,10 +215,14 @@ function VS:BuyWatchedItems()
                         })
 
                         local complete = watchData.bought >= watchData.target
-                        VS:PlayAlert(name, canBuy, complete)
 
                         if complete then
-                            watchlist[itemId] = nil
+                            -- Full alert: sound + raid warning
+                            VS:PlayAlert(name, canBuy, true)
+                        else
+                            -- Quiet: chat only, no sound
+                            local progress = watchData.bought .. "/" .. watchData.target
+                            print(ADDON_PREFIX .. "|cFF00FF00Bought|r " .. canBuy .. "x " .. (name or "item") .. " (" .. progress .. ")")
                         end
 
                         anyBought = true
@@ -573,6 +577,39 @@ function VS:CreateRow(parent, index)
     row.infoText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     row.infoText:SetPoint("RIGHT", -5, 0)
     row.infoText:SetJustifyH("RIGHT")
+
+    -- Stepper controls (watchlist view only)
+    row.minusBtn = CreateFrame("Button", nil, row)
+    row.minusBtn:SetSize(16, 16)
+    row.minusBtn:SetPoint("RIGHT", row.infoText, "LEFT", -4, 0)
+    row.minusBtn:SetNormalFontObject("GameFontNormalSmall")
+    row.minusBtn:SetHighlightFontObject("GameFontHighlightSmall")
+    row.minusBtn:SetText("-")
+    row.minusBtn:SetScript("OnClick", function()
+        if row.itemId then
+            VS:AdjustTarget(row.itemId, -1)
+        end
+    end)
+    row.minusBtn:Hide()
+
+    row.targetText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    row.targetText:SetPoint("RIGHT", row.minusBtn, "LEFT", -2, 0)
+    row.targetText:SetJustifyH("CENTER")
+    row.targetText:SetWidth(20)
+    row.targetText:Hide()
+
+    row.plusBtn = CreateFrame("Button", nil, row)
+    row.plusBtn:SetSize(16, 16)
+    row.plusBtn:SetPoint("RIGHT", row.targetText, "LEFT", -2, 0)
+    row.plusBtn:SetNormalFontObject("GameFontNormalSmall")
+    row.plusBtn:SetHighlightFontObject("GameFontHighlightSmall")
+    row.plusBtn:SetText("+")
+    row.plusBtn:SetScript("OnClick", function()
+        if row.itemId then
+            VS:AdjustTarget(row.itemId, 1)
+        end
+    end)
+    row.plusBtn:Hide()
 
     -- Hover highlight
     row.highlight = row:CreateTexture(nil, "HIGHLIGHT")
