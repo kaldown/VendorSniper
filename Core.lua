@@ -426,8 +426,12 @@ function VS:AdjustTarget(itemId, delta)
         end
         watchData.target = -cap
     else
-        local minTarget = watchData.bought + 1
-        watchData.target = math.max(minTarget, watchData.target + delta)
+        local newTarget = watchData.target + delta
+        if newTarget <= watchData.bought then
+            self:RemoveWatch(itemId)
+            return
+        end
+        watchData.target = newTarget
     end
     self:UpdateFrame()
 end
