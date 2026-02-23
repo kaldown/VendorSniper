@@ -789,6 +789,9 @@ function VS:UpdateList()
                 row.icon:ClearAllPoints()
                 row.icon:SetPoint("LEFT", row.check, "RIGHT", 2, 0)
                 row.check:SetChecked(IsItemWatched(item.itemId))
+                row.minusBtn:Hide()
+                row.targetText:Hide()
+                row.plusBtn:Hide()
 
                 if item.isWatchlistOnly then
                     row.infoText:SetText("(not in vendor)")
@@ -807,15 +810,39 @@ function VS:UpdateList()
                 row.check:Hide()
                 row.icon:ClearAllPoints()
                 row.icon:SetPoint("LEFT", 4, 0)
-                local progress = (item.bought or 0) .. "/" .. (item.target or 0)
-                row.infoText:SetText(progress .. " " .. (item.addedFrom or ""))
-                row.infoText:SetTextColor(0.5, 0.5, 0.5)
+
+                local bought = item.bought or 0
+                local target = item.target or 0
+                local complete = bought >= target
+
+                row.infoText:SetText(bought .. "/" .. target)
+
+                if complete then
+                    -- Completed: dim everything, hide stepper
+                    row.nameText:SetTextColor(0.4, 0.4, 0.4)
+                    row.infoText:SetTextColor(0.0, 0.6, 0.0)
+                    row.minusBtn:Hide()
+                    row.targetText:Hide()
+                    row.plusBtn:Hide()
+                else
+                    -- Active: show stepper
+                    row.nameText:SetTextColor(1.0, 1.0, 1.0)
+                    row.infoText:SetTextColor(0.5, 0.5, 0.5)
+                    row.targetText:SetText(tostring(target))
+                    row.targetText:SetTextColor(1.0, 0.82, 0.0)
+                    row.minusBtn:Show()
+                    row.targetText:Show()
+                    row.plusBtn:Show()
+                end
             end
 
             row:Show()
         else
             row.itemId = nil
             row.itemName = nil
+            row.minusBtn:Hide()
+            row.targetText:Hide()
+            row.plusBtn:Hide()
             row:Hide()
         end
     end
