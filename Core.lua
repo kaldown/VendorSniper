@@ -750,19 +750,17 @@ function VS:UpdateList()
         end
 
     else -- watchlist
-        -- All active watched items from global watchlist
+        -- All watched items (active + completed) from global watchlist
         for itemId, data in pairs(VendorSniperDB.watchlist) do
-            if data.target > data.bought then
-                local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemId)
-                tinsert(items, {
-                    itemId = itemId,
-                    name = data.name,
-                    texture = itemTexture or "Interface\\Icons\\INV_Misc_QuestionMark",
-                    addedFrom = data.addedFrom,
-                    bought = data.bought,
-                    target = data.target,
-                })
-            end
+            local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemId)
+            tinsert(items, {
+                itemId = itemId,
+                name = data.name,
+                texture = itemTexture or "Interface\\Icons\\INV_Misc_QuestionMark",
+                addedFrom = data.addedFrom,
+                bought = data.bought or 0,
+                target = data.target or 0,
+            })
         end
     end
 
@@ -890,7 +888,7 @@ function VS:UpdateFooter()
             self.refreshText:SetText("|cFF00FF00SNIPING|r - open vendor to start cycle")
             self.refreshText:SetTextColor(0.0, 1.0, 0.0)
         else
-            self.refreshText:SetText("Click to remove. Visit vendor to add.")
+            self.refreshText:SetText("Click to remove. Use +/- to set quantity.")
             self.refreshText:SetTextColor(0.5, 0.5, 0.5)
         end
     end
