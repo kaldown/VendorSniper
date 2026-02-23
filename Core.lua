@@ -771,7 +771,7 @@ function VS:UpdateList()
             end
         end
         for itemId, data in pairs(VendorSniperDB.watchlist) do
-            if not seen[itemId] and data.target > data.bought then
+            if not seen[itemId] and (IsForeverWatch(data) or data.target > data.bought) then
                 local _, _, _, _, _, _, _, _, _, itemTexture = GetItemInfo(itemId)
                 tinsert(items, {
                     itemId = itemId,
@@ -843,28 +843,39 @@ function VS:UpdateList()
                 row.icon:ClearAllPoints()
                 row.icon:SetPoint("LEFT", 4, 0)
 
-                local bought = item.bought or 0
-                local target = item.target or 0
-                local complete = bought >= target
-
-                row.infoText:SetText(bought .. "/" .. target)
-
-                if complete then
-                    -- Completed: dim everything, hide stepper
-                    row.nameText:SetTextColor(0.4, 0.4, 0.4)
-                    row.infoText:SetTextColor(0.0, 0.6, 0.0)
-                    row.minusBtn:Hide()
-                    row.targetText:Hide()
-                    row.plusBtn:Hide()
-                else
-                    -- Active: show stepper
-                    row.nameText:SetTextColor(1.0, 1.0, 1.0)
+                if IsForeverWatch(item) then
+                    -- Forever: show lifetime bought count, stepper shows per-visit cap
+                    local cap = math.abs(item.target)
+                    row.infoText:SetText((item.bought or 0) .. " bought")
                     row.infoText:SetTextColor(0.5, 0.5, 0.5)
-                    row.targetText:SetText(tostring(target))
-                    row.targetText:SetTextColor(1.0, 0.82, 0.0)
+                    row.nameText:SetTextColor(1.0, 1.0, 1.0)
+                    row.targetText:SetText(tostring(cap))
+                    row.targetText:SetTextColor(0.0, 1.0, 0.4) -- green to distinguish from finite gold
                     row.minusBtn:Show()
                     row.targetText:Show()
                     row.plusBtn:Show()
+                else
+                    local bought = item.bought or 0
+                    local target = item.target or 0
+                    local complete = bought >= target
+
+                    row.infoText:SetText(bought .. "/" .. target)
+
+                    if complete then
+                        row.nameText:SetTextColor(0.4, 0.4, 0.4)
+                        row.infoText:SetTextColor(0.0, 0.6, 0.0)
+                        row.minusBtn:Hide()
+                        row.targetText:Hide()
+                        row.plusBtn:Hide()
+                    else
+                        row.nameText:SetTextColor(1.0, 1.0, 1.0)
+                        row.infoText:SetTextColor(0.5, 0.5, 0.5)
+                        row.targetText:SetText(tostring(target))
+                        row.targetText:SetTextColor(1.0, 0.82, 0.0)
+                        row.minusBtn:Show()
+                        row.targetText:Show()
+                        row.plusBtn:Show()
+                    end
                 end
             end
 
