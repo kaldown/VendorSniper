@@ -1031,7 +1031,10 @@ SlashCmdList["VENDORSNIPER"] = function(msg)
         local count = GetWatchedCount()
         print(ADDON_PREFIX .. "Watching: " .. count .. " item(s)")
         for itemId, data in pairs(VendorSniperDB.watchlist) do
-            if data.target > data.bought then
+            if IsForeverWatch(data) then
+                local cap = GetPerVisitCap(data)
+                print(ADDON_PREFIX .. "  " .. data.name .. "  " .. data.bought .. " bought, max " .. cap .. "/visit (from " .. (data.addedFrom or "?") .. ")")
+            elseif data.target > data.bought then
                 print(ADDON_PREFIX .. "  " .. data.name .. " " .. data.bought .. "/" .. data.target .. " (from " .. (data.addedFrom or "?") .. ")")
             end
         end
