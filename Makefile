@@ -1,4 +1,4 @@
-.PHONY: libs clean-libs
+.PHONY: libs clean-libs watch
 
 libs:
 	@echo "Fetching libraries for local development..."
@@ -27,3 +27,6 @@ libs:
 
 clean-libs:
 	rm -rf Libs/
+
+watch:
+	@./tools/sniper-reopen.sh $(or $(MINUTES),60)

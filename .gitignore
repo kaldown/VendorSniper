@@ -20,8 +20,5 @@ docs/plans/
 # Libraries (fetched via .pkgmeta externals)
 Libs/
 
-# Shell tooling
-tools/
-
 # Packager output
 .release/
