@@ -1,7 +1,5 @@
--- AutoBuy.lua: Automation module (git-only, excluded from CurseForge/Wago package)
+-- AutoBuy.lua: Automation module
 -- Adds auto-buy on vendor open, snipe mode (auto-close), and MERCHANT_UPDATE auto-buy
--- This file is loaded by VendorSniper.toc but excluded via .pkgmeta
--- Without this file, Core.lua works standalone with alert + Buy All button
 
 local ADDON_NAME, VS = ...
 
