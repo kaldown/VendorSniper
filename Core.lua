@@ -357,7 +357,7 @@ end
 --------------------------------------------------------------
 
 StaticPopupDialogs["VENDORSNIPER_QUANTITY"] = {
-    text = "How many to snipe?\n\n%s",
+    text = "How many to snipe?\n\n%s\n\nNegative = always buy (e.g. -1, -3)",
     button1 = "OK",
     button2 = "Cancel",
     hasEditBox = true,
@@ -368,14 +368,14 @@ StaticPopupDialogs["VENDORSNIPER_QUANTITY"] = {
     end,
     OnAccept = function(self)
         local qty = tonumber(self.editBox:GetText())
-        if qty and qty > 0 then
+        if qty and qty ~= 0 then
             VS:SetWatch(VS._pendingItemId, VS._pendingItemName, math.floor(qty))
         end
     end,
     EditBoxOnEnterPressed = function(self)
         local parent = self:GetParent()
         local qty = tonumber(self:GetText())
-        if qty and qty > 0 then
+        if qty and qty ~= 0 then
             VS:SetWatch(VS._pendingItemId, VS._pendingItemName, math.floor(qty))
         end
         parent:Hide()
