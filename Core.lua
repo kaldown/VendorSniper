@@ -417,8 +417,17 @@ end
 function VS:AdjustTarget(itemId, delta)
     local watchData = VendorSniperDB.watchlist[itemId]
     if not watchData then return end
-    local minTarget = watchData.bought + 1
-    watchData.target = math.max(minTarget, watchData.target + delta)
+    if IsForeverWatch(watchData) then
+        local cap = GetPerVisitCap(watchData) + delta
+        if cap < 1 then
+            self:RemoveWatch(itemId)
+            return
+        end
+        watchData.target = -cap
+    else
+        local minTarget = watchData.bought + 1
+        watchData.target = math.max(minTarget, watchData.target + delta)
+    end
     self:UpdateFrame()
 end
 
