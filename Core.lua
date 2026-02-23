@@ -579,28 +579,11 @@ function VS:CreateRow(parent, index)
     row.infoText:SetJustifyH("RIGHT")
 
     -- Stepper controls (watchlist view only)
-    row.minusBtn = CreateFrame("Button", nil, row)
-    row.minusBtn:SetSize(16, 16)
-    row.minusBtn:SetPoint("RIGHT", row.infoText, "LEFT", -4, 0)
-    row.minusBtn:SetNormalFontObject("GameFontNormalSmall")
-    row.minusBtn:SetHighlightFontObject("GameFontHighlightSmall")
-    row.minusBtn:SetText("-")
-    row.minusBtn:SetScript("OnClick", function()
-        if row.itemId then
-            VS:AdjustTarget(row.itemId, -1)
-        end
-    end)
-    row.minusBtn:Hide()
-
-    row.targetText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    row.targetText:SetPoint("RIGHT", row.minusBtn, "LEFT", -2, 0)
-    row.targetText:SetJustifyH("CENTER")
-    row.targetText:SetWidth(20)
-    row.targetText:Hide()
-
+    -- Anchor order right-to-left: infoText <- plusBtn <- targetText <- minusBtn
+    -- Visual order left-to-right: [-] N [+] 0/5
     row.plusBtn = CreateFrame("Button", nil, row)
     row.plusBtn:SetSize(16, 16)
-    row.plusBtn:SetPoint("RIGHT", row.targetText, "LEFT", -2, 0)
+    row.plusBtn:SetPoint("RIGHT", row.infoText, "LEFT", -4, 0)
     row.plusBtn:SetNormalFontObject("GameFontNormalSmall")
     row.plusBtn:SetHighlightFontObject("GameFontHighlightSmall")
     row.plusBtn:SetText("+")
@@ -611,6 +594,25 @@ function VS:CreateRow(parent, index)
     end)
     row.plusBtn:Hide()
 
+    row.targetText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    row.targetText:SetPoint("RIGHT", row.plusBtn, "LEFT", -2, 0)
+    row.targetText:SetJustifyH("CENTER")
+    row.targetText:SetWidth(24)
+    row.targetText:Hide()
+
+    row.minusBtn = CreateFrame("Button", nil, row)
+    row.minusBtn:SetSize(16, 16)
+    row.minusBtn:SetPoint("RIGHT", row.targetText, "LEFT", -2, 0)
+    row.minusBtn:SetNormalFontObject("GameFontNormalSmall")
+    row.minusBtn:SetHighlightFontObject("GameFontHighlightSmall")
+    row.minusBtn:SetText("-")
+    row.minusBtn:SetScript("OnClick", function()
+        if row.itemId then
+            VS:AdjustTarget(row.itemId, -1)
+        end
+    end)
+    row.minusBtn:Hide()
+
     -- Hover highlight
     row.highlight = row:CreateTexture(nil, "HIGHLIGHT")
     row.highlight:SetAllPoints()
@@ -619,6 +621,9 @@ function VS:CreateRow(parent, index)
     -- Click handler for the whole row
     row:EnableMouse(true)
     row:SetScript("OnMouseDown", function(self, button)
+        -- Ignore clicks on stepper buttons (they handle themselves)
+        local focus = GetMouseFocus()
+        if focus == row.minusBtn or focus == row.plusBtn then return end
         if button == "LeftButton" and self.itemId then
             if viewContext == "vendor" then
                 VS:ToggleWatch(self.itemId, self.itemName)
