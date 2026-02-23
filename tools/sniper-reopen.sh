@@ -1,4 +1,4 @@
-#\!/bin/sh
+#!/bin/sh
 # VendorSniper auto-reopen
 # Presses F5 with random delay (2-5s) to reopen vendor window
 # Make sure "Interact with Target" is bound to F5 in WoW settings
