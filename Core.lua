@@ -389,6 +389,14 @@ function VS:RemoveWatch(itemId)
     self:UpdateFrame()
 end
 
+function VS:AdjustTarget(itemId, delta)
+    local watchData = VendorSniperDB.watchlist[itemId]
+    if not watchData then return end
+    local minTarget = watchData.bought + 1
+    watchData.target = math.max(minTarget, watchData.target + delta)
+    self:UpdateFrame()
+end
+
 function VS:ToggleWatch(itemId, itemName)
     if IsItemWatched(itemId) then
         self:RemoveWatch(itemId)
