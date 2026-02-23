@@ -15,17 +15,26 @@ Other addons:
 - [PickMe](https://www.curseforge.com/wow/addons/pickme) - LFG listing browser
 - [EyesOnMe](https://www.curseforge.com/wow/addons/eyesonme) - PvP targeting awareness
 
-Never miss a limited-supply vendor restock. VendorSniper watches for items you want, alerts you when they're in stock, and lets you buy them all with one click.
+Never miss a limited-supply vendor restock again. Park an alt at a vendor, pick the items you want, and VendorSniper auto-buys them the instant they restock.
 
 ## Features
 
-- **Vendor scanning** - Automatically detects limited-supply items when you open a vendor
-- **Watchlist** - Mark items to watch across any vendor, persists between sessions
-- **Quantity targets** - Set how many you need; tracks progress and stops when complete
-- **Stock alerts** - Raid warning sound and screen flash when watched items are available
-- **One-click buying** - "Buy All" button purchases all watched items instantly
+**Basic Mode (always on):**
+- **Auto-buy on vendor open** - Automatically purchases watched items when you open any vendor
+- **Global watchlist** - Watch items across any vendor, persists between sessions
+- **Quantity targets** - Set how many you need; VendorSniper tracks progress and stops when complete
+
+**Snipe Mode (`/vs snipe`):**
+- **AFK vendor restock loop** - Auto-closes vendor after each visit so an external key-press tool can reopen it
+- **Session-only** - Resets on login so it never runs unintentionally
+- **Auto-deactivates** - Stops when all watchlist targets are complete
+
+**Both modes:**
+- **Raid warning alerts** - Screen flash and looping sound when a purchase is made (toggleable with `/vs alert`)
 - **Purchase log** - Track what was bought, when, and from which vendor
 - **Minimap button** - Left-click to toggle window
+
+> **Note:** Using external automation tools (auto-clickers, key-press scripts) is against Blizzard's Terms of Service.
 
 ## Screenshots
 
@@ -42,13 +51,49 @@ Open any vendor with limited-supply items. Check the ones you want to watch.
 
 ## Usage
 
-1. Visit a vendor with limited-supply items
-2. VendorSniper shows limited items with checkboxes
-3. Check items you want to watch (shift-click for custom quantity)
-4. Next time you visit a vendor with those items in stock, you get an alert
-5. Click "Buy All" to purchase everything on your watchlist
+### Basic Mode
 
-**Tip:** Items are watched globally - they'll be detected at any vendor that sells them, not just the one you added them from.
+1. Visit a vendor that sells limited-supply items
+2. VendorSniper automatically shows limited items with checkboxes
+3. Check items you want to watch (shift-click for custom quantity)
+4. Next time you visit any vendor with those items in stock, they are bought automatically
+5. A raid warning alert fires on each purchase
+
+**Tip:** Items are bought from any vendor that sells them, not just the one you added them from.
+
+### Snipe Mode Setup
+
+For AFK vendor camping (auto-buy on restock):
+
+1. Add items to watchlist (`/vs watch [item]` or check them at the vendor)
+2. Park your alt at the vendor, facing the NPC
+3. In WoW: bind **Interact With Target** to a key (e.g. F5) in Options - Keybindings
+4. Type `/vs snipe` to activate snipe mode
+5. Run an OS script to press your interact key every few seconds (see below)
+6. Go AFK - VendorSniper auto-buys when items restock
+
+**macOS:**
+```bash
+# Press F5 every 5 seconds (F5 = key code 96)
+# Adjust key code and sleep interval for your setup
+while true; do
+    osascript -e 'tell application "System Events" to key code 96'
+    sleep 5
+done
+```
+
+A convenience script is included in the repo: `make watch` (or `make watch MINUTES=30`).
+
+**Windows (AutoHotkey):**
+```ahk
+; Press F5 every 5 seconds - save as .ahk and run
+; Adjust key and interval to match your keybind
+; Alternatives: PowerShell, Python, or any key-sending tool
+Loop {
+    Send, {F5}
+    Sleep, 5000
+}
+```
 
 ## Slash Commands
 
@@ -56,6 +101,7 @@ Open any vendor with limited-supply items. Check the ones you want to watch.
 |---------|-------------|
 | `/vs` | Toggle window |
 | `/vs watch [itemlink]` | Add item to watchlist |
+| `/vs snipe` | Toggle snipe mode (auto-close for AFK restock loop) |
 | `/vs clear` | Clear watchlist |
 | `/vs status` | Show status and watched items |
 | `/vs log` | Show recent purchase log |
