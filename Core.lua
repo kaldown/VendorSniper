@@ -197,6 +197,7 @@ function VS:BuyWatchedItems()
 
     for i = 1, numItems do
         local name, texture, price, quantity, numAvailable, isUsable, extendedCost = GetMerchantItemInfo(i)
+        -- numAvailable: -1 = unlimited, 0 = out of stock, >0 = limited in stock
         local isAvailable = numAvailable == -1 or numAvailable > 0
         if isAvailable then
             local itemLink = GetMerchantItemLink(i)
@@ -845,7 +846,7 @@ function VS:UpdateList()
 
                 if IsForeverWatch(item) then
                     -- Forever: show lifetime bought count, stepper shows per-visit cap
-                    local cap = math.abs(item.target)
+                    local cap = GetPerVisitCap(item)
                     row.infoText:SetText((item.bought or 0) .. " bought")
                     row.infoText:SetTextColor(0.5, 0.5, 0.5)
                     row.nameText:SetTextColor(1.0, 1.0, 1.0)
