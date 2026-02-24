@@ -38,6 +38,7 @@ local currentVendorGUID = nil
 local currentVendorName = nil
 local limitedItems = {} -- scanned limited supply items (valid only while merchant open)
 local viewContext = "watchlist" -- "vendor" | "watchlist"
+local wasShownBeforeCombat = false
 
 --------------------------------------------------------------
 -- DB
@@ -964,6 +965,7 @@ end
 --------------------------------------------------------------
 
 function VS:ShowFrame()
+    if InCombatLockdown() then return end
     if not self.frame then
         self:CreateMainFrame()
     end
@@ -972,12 +974,14 @@ function VS:ShowFrame()
 end
 
 function VS:HideFrame()
+    if InCombatLockdown() then return end
     if self.frame then
         self.frame:Hide()
     end
 end
 
 function VS:ToggleFrame()
+    if InCombatLockdown() then return end
     if self.frame and self.frame:IsShown() then
         self:HideFrame()
     else
@@ -1104,6 +1108,8 @@ eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("MERCHANT_SHOW")
 eventFrame:RegisterEvent("MERCHANT_CLOSED")
 eventFrame:RegisterEvent("MERCHANT_UPDATE")
+eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 eventFrame:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == ADDON_NAME then
         InitializeDB()
@@ -1128,6 +1134,18 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
                 VS:OnMerchantUpdatePost()
             end
             VS:UpdateFrame()
+        end
+
+    elseif event == "PLAYER_REGEN_DISABLED" then
+        if VS.frame and VS.frame:IsShown() then
+            wasShownBeforeCombat = true
+            VS.frame:Hide()
+        end
+
+    elseif event == "PLAYER_REGEN_ENABLED" then
+        if wasShownBeforeCombat then
+            wasShownBeforeCombat = false
+            VS:ShowFrame()
         end
     end
 end)
