@@ -15,7 +15,7 @@ local LDBIcon = LibStub("LibDBIcon-1.0")
 -- Constants
 --------------------------------------------------------------
 
-local FRAME_WIDTH = 320
+local FRAME_WIDTH = 380
 local FRAME_HEIGHT = 320
 local ROW_HEIGHT = 26
 local VISIBLE_ROWS = 8
@@ -406,7 +406,10 @@ function VS:SetWatch(itemId, itemName, quantity)
 end
 
 function VS:RemoveWatch(itemId)
+    local watchData = VendorSniperDB.watchlist[itemId]
+    local itemName = watchData and watchData.name or ("Item " .. itemId)
     VendorSniperDB.watchlist[itemId] = nil
+    print(ADDON_PREFIX .. "Removed: " .. itemName .. " (ID: " .. itemId .. ") - /vs watch " .. itemId)
     if VS.sniping and not HasActiveWatchlist() then
         if VS.StopSniping then
             VS:StopSniping()
@@ -418,21 +421,7 @@ end
 function VS:AdjustTarget(itemId, delta)
     local watchData = VendorSniperDB.watchlist[itemId]
     if not watchData then return end
-    if IsForeverWatch(watchData) then
-        local cap = GetPerVisitCap(watchData) + delta
-        if cap < 1 then
-            self:RemoveWatch(itemId)
-            return
-        end
-        watchData.target = -cap
-    else
-        local newTarget = watchData.target + delta
-        if newTarget <= watchData.bought then
-            self:RemoveWatch(itemId)
-            return
-        end
-        watchData.target = newTarget
-    end
+    watchData.target = watchData.target + delta
     self:UpdateFrame()
 end
 
@@ -610,18 +599,20 @@ function VS:CreateRow(parent, index)
 
     -- Stock / progress / vendor name
     row.infoText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    row.infoText:SetPoint("RIGHT", -5, 0)
+    row.infoText:SetPoint("RIGHT", -24, 0)
     row.infoText:SetJustifyH("RIGHT")
 
     -- Stepper controls (watchlist view only)
     -- Anchor order right-to-left: infoText <- plusBtn <- targetText <- minusBtn
     -- Visual order left-to-right: [-] N [+] 0/5
     row.plusBtn = CreateFrame("Button", nil, row)
-    row.plusBtn:SetSize(16, 16)
+    row.plusBtn:SetSize(20, 20)
     row.plusBtn:SetPoint("RIGHT", row.infoText, "LEFT", -4, 0)
     row.plusBtn:SetNormalFontObject("GameFontNormalSmall")
     row.plusBtn:SetHighlightFontObject("GameFontHighlightSmall")
-    row.plusBtn:SetText("+")
+    row.plusBtn:SetText("|cFF44FF44+|r")
+    do local hl = row.plusBtn:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints(); hl:SetColorTexture(1, 1, 1, 0.2) end
     row.plusBtn:SetScript("OnClick", function()
         if row.itemId then
             VS:AdjustTarget(row.itemId, 1)
@@ -632,21 +623,39 @@ function VS:CreateRow(parent, index)
     row.targetText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     row.targetText:SetPoint("RIGHT", row.plusBtn, "LEFT", -2, 0)
     row.targetText:SetJustifyH("CENTER")
-    row.targetText:SetWidth(24)
+    row.targetText:SetWidth(30)
     row.targetText:Hide()
 
     row.minusBtn = CreateFrame("Button", nil, row)
-    row.minusBtn:SetSize(16, 16)
+    row.minusBtn:SetSize(20, 20)
     row.minusBtn:SetPoint("RIGHT", row.targetText, "LEFT", -2, 0)
     row.minusBtn:SetNormalFontObject("GameFontNormalSmall")
     row.minusBtn:SetHighlightFontObject("GameFontHighlightSmall")
-    row.minusBtn:SetText("-")
+    row.minusBtn:SetText("|cFFFF4444-|r")
+    do local hl = row.minusBtn:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints(); hl:SetColorTexture(1, 1, 1, 0.2) end
     row.minusBtn:SetScript("OnClick", function()
         if row.itemId then
             VS:AdjustTarget(row.itemId, -1)
         end
     end)
     row.minusBtn:Hide()
+
+    -- Delete button (watchlist view only)
+    row.deleteBtn = CreateFrame("Button", nil, row)
+    row.deleteBtn:SetSize(18, 18)
+    row.deleteBtn:SetPoint("RIGHT", -2, 0)
+    row.deleteBtn:SetNormalFontObject("GameFontNormalSmall")
+    row.deleteBtn:SetHighlightFontObject("GameFontHighlightSmall")
+    row.deleteBtn:SetText("|cFFFF4444X|r")
+    do local hl = row.deleteBtn:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints(); hl:SetColorTexture(1, 1, 1, 0.2) end
+    row.deleteBtn:SetScript("OnClick", function()
+        if row.itemId then
+            VS:RemoveWatch(row.itemId)
+        end
+    end)
+    row.deleteBtn:Hide()
 
     -- Hover highlight
     row.highlight = row:CreateTexture(nil, "HIGHLIGHT")
@@ -656,14 +665,13 @@ function VS:CreateRow(parent, index)
     -- Click handler for the whole row
     row:EnableMouse(true)
     row:SetScript("OnMouseDown", function(self, button)
-        -- Ignore clicks on stepper buttons (they handle themselves)
-        if row.minusBtn:IsMouseOver() or row.plusBtn:IsMouseOver() then return end
+        -- Ignore clicks on child buttons (they handle themselves)
+        if row.minusBtn:IsMouseOver() or row.plusBtn:IsMouseOver() or row.deleteBtn:IsMouseOver() then return end
         if button == "LeftButton" and self.itemId then
             if viewContext == "vendor" then
                 VS:ToggleWatch(self.itemId, self.itemName)
-            elseif viewContext == "watchlist" then
-                VS:RemoveWatch(self.itemId)
             end
+            -- Watchlist: no row-click action (use X button to delete)
         end
     end)
 
@@ -823,6 +831,9 @@ function VS:UpdateList()
 
             if viewContext == "vendor" then
                 row.check:Show()
+                row.deleteBtn:Hide()
+                row.infoText:ClearAllPoints()
+                row.infoText:SetPoint("RIGHT", -5, 0)
                 row.icon:ClearAllPoints()
                 row.icon:SetPoint("LEFT", row.check, "RIGHT", 2, 0)
                 row.check:SetChecked(IsItemWatched(item.itemId))
@@ -845,42 +856,45 @@ function VS:UpdateList()
 
             else -- watchlist
                 row.check:Hide()
+                row.deleteBtn:Show()
+                row.infoText:ClearAllPoints()
+                row.infoText:SetPoint("RIGHT", -24, 0)
                 row.icon:ClearAllPoints()
                 row.icon:SetPoint("LEFT", 4, 0)
 
-                if IsForeverWatch(item) then
-                    -- Forever: show lifetime bought count, stepper shows per-visit cap
-                    local cap = GetPerVisitCap(item)
-                    row.infoText:SetText((item.bought or 0) .. " bought")
-                    row.infoText:SetTextColor(0.5, 0.5, 0.5)
+                local target = item.target or 0
+                local bought = item.bought or 0
+
+                -- Always show stepper with raw target value
+                row.targetText:SetText(tostring(target))
+                row.minusBtn:Show()
+                row.targetText:Show()
+                row.plusBtn:Show()
+
+                if target < 0 then
+                    -- Forever: green stepper, "per visit" info
                     row.nameText:SetTextColor(1.0, 1.0, 1.0)
-                    row.targetText:SetText(tostring(cap))
-                    row.targetText:SetTextColor(0.0, 1.0, 0.4) -- green to distinguish from finite gold
-                    row.minusBtn:Show()
-                    row.targetText:Show()
-                    row.plusBtn:Show()
-                else
-                    local bought = item.bought or 0
-                    local target = item.target or 0
-                    local complete = bought >= target
-
+                    row.targetText:SetTextColor(0.0, 1.0, 0.4)
+                    row.infoText:SetText("per visit")
+                    row.infoText:SetTextColor(0.0, 1.0, 0.4)
+                elseif target == 0 then
+                    -- Paused: gray everything
+                    row.nameText:SetTextColor(0.5, 0.5, 0.5)
+                    row.targetText:SetTextColor(0.5, 0.5, 0.5)
+                    row.infoText:SetText("paused")
+                    row.infoText:SetTextColor(0.5, 0.5, 0.5)
+                elseif bought >= target then
+                    -- Finite complete: dim name, green progress
+                    row.nameText:SetTextColor(0.4, 0.4, 0.4)
+                    row.targetText:SetTextColor(1.0, 0.82, 0.0)
                     row.infoText:SetText(bought .. "/" .. target)
-
-                    if complete then
-                        row.nameText:SetTextColor(0.4, 0.4, 0.4)
-                        row.infoText:SetTextColor(0.0, 0.6, 0.0)
-                        row.minusBtn:Hide()
-                        row.targetText:Hide()
-                        row.plusBtn:Hide()
-                    else
-                        row.nameText:SetTextColor(1.0, 1.0, 1.0)
-                        row.infoText:SetTextColor(0.5, 0.5, 0.5)
-                        row.targetText:SetText(tostring(target))
-                        row.targetText:SetTextColor(1.0, 0.82, 0.0)
-                        row.minusBtn:Show()
-                        row.targetText:Show()
-                        row.plusBtn:Show()
-                    end
+                    row.infoText:SetTextColor(0.0, 0.6, 0.0)
+                else
+                    -- Finite active: normal name, gold stepper
+                    row.nameText:SetTextColor(1.0, 1.0, 1.0)
+                    row.targetText:SetTextColor(1.0, 0.82, 0.0)
+                    row.infoText:SetText(bought .. "/" .. target)
+                    row.infoText:SetTextColor(0.5, 0.5, 0.5)
                 end
             end
 
@@ -891,6 +905,7 @@ function VS:UpdateList()
             row.minusBtn:Hide()
             row.targetText:Hide()
             row.plusBtn:Hide()
+            row.deleteBtn:Hide()
             row:Hide()
         end
     end
@@ -938,7 +953,7 @@ function VS:UpdateFooter()
             self.refreshText:SetText("|cFF00FF00SNIPING|r - open vendor to start cycle")
             self.refreshText:SetTextColor(0.0, 1.0, 0.0)
         else
-            self.refreshText:SetText("Click to remove. Use +/- to set quantity.")
+            self.refreshText:SetText("+/- adjust target. X to remove.")
             self.refreshText:SetTextColor(0.5, 0.5, 0.5)
         end
     end
