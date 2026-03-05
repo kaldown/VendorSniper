@@ -15,49 +15,27 @@ Other addons:
 
 ---
 
-Never miss a limited-supply vendor restock again. Park an alt at a vendor, pick the items you want, and VendorSniper auto-buys them the instant they restock.
+Never miss a limited-supply vendor restock again. Track the items you want across any vendor and get alerted when they are in stock.
 
 ## Features
 
-**Basic Mode (always on):**
-- **Auto-buy on vendor open** - Automatically purchases watched items when you open any vendor
-- **Global watchlist** - Watch items across any vendor, persists between sessions
-- **Quantity targets** - Set how many you need; VendorSniper tracks progress and stops when complete
-
-**Snipe Mode (`/vs snipe`):**
-- **AFK vendor restock loop** - Auto-closes vendor after each visit so an external key-press tool can reopen it
-- **Session-only** - Resets on login so it never runs unintentionally
-- **Auto-deactivates** - Stops when all watchlist targets are complete
-
-**Both modes:**
-- **Raid warning alerts** - Screen flash and looping sound when a purchase is made (toggleable with `/vs alert`)
+- **Global watchlist** - Watch limited-supply items across any vendor, persists between sessions
+- **Quantity targets** - Set how many you need; VendorSniper tracks progress toward your goal
+- **Forever watch** - Mark items to buy on every visit with a configurable per-visit cap
+- **Raid warning alerts** - Screen flash and looping sound when watched items are in stock (toggleable with `/vs alert`)
+- **Buy All button** - One-click purchase of all watched items currently in stock
 - **Purchase log** - Track what was bought, when, and from which vendor
 - **Minimap button** - Left-click to toggle window
 
-> **Note:** Using external automation tools (auto-clickers, key-press scripts) is against Blizzard's Terms of Service.
-
 ## Usage
 
-### Basic Mode
-
 1. Visit a vendor that sells limited-supply items
-2. VendorSniper automatically shows limited items with checkboxes
+2. VendorSniper shows limited items with checkboxes
 3. Check items you want to watch (shift-click for custom quantity)
-4. Next time you visit any vendor with those items in stock, they are bought automatically
-5. A raid warning alert fires on each purchase
+4. Next time you visit any vendor with those items in stock, an alert fires
+5. Click **Buy All** to purchase watched items, or buy them manually
 
-**Tip:** Items are bought from any vendor that sells them, not just the one you added them from.
-
-### Snipe Mode
-
-1. Add items to watchlist (`/vs watch [item]` or check them at the vendor)
-2. Park your alt at the vendor, facing the NPC
-3. Bind **Interact With Target** to a key (e.g. F5) in Options - Keybindings
-4. Type `/vs snipe` to activate snipe mode
-5. Use an external key-press tool to reopen the vendor periodically
-6. VendorSniper auto-buys when items restock
-
-Tools and scripts for snipe mode automation are available on [GitHub](https://github.com/kaldown/VendorSniper).
+**Tip:** Items are tracked globally - they can be bought from any vendor that sells them, not just the one you added them from.
 
 ## Slash Commands
 
@@ -65,7 +43,6 @@ Tools and scripts for snipe mode automation are available on [GitHub](https://gi
 |---------|-------------|
 | `/vs` | Toggle window |
 | `/vs watch [itemlink]` | Add item to watchlist |
-| `/vs snipe` | Toggle snipe mode (auto-close for AFK restock loop) |
 | `/vs clear` | Clear watchlist |
 | `/vs status` | Show status and watched items |
 | `/vs log` | Show recent purchase log |

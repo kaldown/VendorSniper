@@ -1,8 +1,8 @@
 ## Interface: 11508, 20505
 ## Title: VendorSniper
-## Notes: Auto-buy limited-supply vendor items when they restock
+## Notes: Track and buy limited-supply vendor items
 ## Author: kaldown
-## Version: 0.6.0
+## Version: 0.7.0
 ## IconTexture: Interface\Icons\INV_Misc_SpyGlass_03
 ## X-License: MIT
 ## X-Curse-Project-ID: 1460701
